@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 // All targets from revised spreadsheet + urban unrest locations
 // Population for Libertador corrected to 256,565 per user input
@@ -65,7 +65,13 @@ const TARGETS_DATA = [
   // === OTHER MILITARY (2) ===
   { name: "CAVIM Arms Complex", municipality: "Girardot (Maracay)", state: "Aragua", population: 401294, type: "Defense Industry", region: "Central", coast: "Near-Coastal", urban: "Urban", notes: "State arms manufacturer, ammunition production" },
   { name: "Anacoco Island Military Base", municipality: "Disputed (Cuyuni River)", state: "Bolivar/Essequibo", population: 500, type: "Forward Operating Base", region: "South", coast: "Interior", urban: "Rural", notes: "Disputed territory with Guyana, forward military presence" },
-  
+
+  // === AIR DEFENSE & COMMUNICATIONS (4) ===
+  { name: "Catia La Mar Air Defense Site", municipality: "Catia La Mar", state: "La Guaira", population: 85288, type: "Air Defense Site", region: "Capital", coast: "Coastal", urban: "Urban", notes: "Air defense storage facility; 393rd Air Defense Missile Group" },
+  { name: "Higuerote Airport", municipality: "Brión", state: "Miranda", population: 27362, type: "Air Base", region: "East", coast: "Coastal", urban: "Small Urban", notes: "Buk-M2E air defense system site" },
+  { name: "Cerro El Volcán", municipality: "El Hatillo", state: "Miranda", population: 85392, type: "Communications Site", region: "Capital", coast: "Near-Coastal", urban: "Urban", notes: "Military communications/telecommunications tower" },
+  { name: "Los Altos de Irapa Radar Station", municipality: "Libertador", state: "Distrito Capital", population: 63800, type: "Radar Station", region: "Capital", coast: "Near-Coastal", urban: "Urban", notes: "Early warning radar installation near El Junquito" },
+
   // === URBAN UNREST LOCATIONS - TIER 1 (5) ===
   { name: "Petare / Sucre Municipality", municipality: "Sucre", state: "Miranda", population: 372470, type: "Urban Center", region: "Capital", coast: "Near-Coastal", urban: "Major Metro", notes: "Largest Caracas barrio, distinct from Libertador; protest hotspot" },
   { name: "Mérida", municipality: "Mérida", state: "Merida", population: 213962, type: "Urban Center", region: "West", coast: "Interior", urban: "Urban", notes: "University city, historically active in protests" },
@@ -96,10 +102,21 @@ const TARGETS_DATA = [
 
 const SCENARIO_PRESETS = {
   custom: { name: "Custom Selection", targets: [], description: "Select individual targets" },
-  airSuperiority: { 
-    name: "Air Superiority Campaign", 
+  airSuperiority: {
+    name: "Air Superiority Campaign",
     targets: TARGETS_DATA.filter(t => t.type === "Air Base" || t.type === "Naval Air Base").map(t => t.name),
     description: "All 10 air bases including naval aviation — neutralize Venezuelan air capability"
+  },
+  airDefenseNeutralization: {
+    name: "Air Defense Neutralization",
+    targets: [
+      "Catia La Mar Air Defense Site",
+      "Higuerote Airport",
+      "Los Altos de Irapa Radar Station",
+      "Cerro El Volcán",
+      "Captain Manuel Rios Air Base (BAEMARI)"
+    ],
+    description: "Target integrated air defense network (Buk-M2E, S-300VM, S-125 systems) and radar installations to establish air superiority."
   },
   counterNarcotics: { 
     name: "Counter-Narcotics Operation", 
@@ -117,8 +134,8 @@ const SCENARIO_PRESETS = {
     ).map(t => t.name),
     description: "All 13 naval/marine facilities — establish maritime control"
   },
-  decapitation: { 
-    name: "Decapitation Strike", 
+  decapitation: {
+    name: "Decapitation Strike",
     targets: [
       "Fort Tiuna",
       "La Carlota AFB (Francisco de Miranda)",
@@ -131,6 +148,22 @@ const SCENARIO_PRESETS = {
       "Petare / Sucre Municipality"
     ],
     description: "9 Capital region command & control targets — Fort Tiuna, HQs, key nodes"
+  },
+  operationAbsoluteResolve: {
+    name: "Operation Absolute Resolve",
+    targets: [
+      "Fort Tiuna",
+      "La Carlota AFB (Francisco de Miranda)",
+      "La Guaira Port",
+      "Catia La Mar Air Defense Site",
+      "Higuerote Airport",
+      "Cerro El Volcán",
+      "Fort Guaicaipuro",
+      "El Libertador Air Base (BAEL)",
+      "Fort Montaña (Cuartel de la Montaña)",
+      "Los Altos de Irapa Radar Station"
+    ],
+    description: "Targets struck in January 2026 U.S. military operation. Note: Two electrical substations in southern Caracas were also disrupted but are not included."
   },
   groundForces: {
     name: "Ground Forces Degradation",
@@ -148,7 +181,26 @@ const SCENARIO_PRESETS = {
     targets: TARGETS_DATA.filter(t => 
       !["Drug Trafficking Region", "Urban Center"].includes(t.type)
     ).map(t => t.name),
-    description: "All 40 military targets — comprehensive degradation of armed forces"
+    description: "All 44 military targets — comprehensive degradation of armed forces"
+  },
+  postTransitionUnrest: {
+    name: "Post-Transition Civil Unrest",
+    targets: [
+      "Caracas (Urban)",
+      "Maracaibo (Urban)",
+      "Valencia (Urban)",
+      "Barquisimeto (Urban)",
+      "Maracay (Urban)",
+      "Petare / Sucre Municipality",
+      "Los Teques",
+      "Guarenas / Guatire",
+      "Cabimas",
+      "Ciudad Ojeda",
+      "Coro",
+      "Acarigua",
+      "Valera"
+    ],
+    description: "Major urban centers in politically contested regions — model displacement from potential post-regime instability or factional conflict."
   },
   civilUnrest: {
     name: "Civil Unrest Scenario",
@@ -179,22 +231,79 @@ const ALL_STATES = ['all', ...new Set(TARGETS_DATA.map(t => t.state))].sort((a, 
 export default function VenezuelaDisplacementDashboard() {
   const [selectedScenario, setSelectedScenario] = useState('custom');
   const [selectedTargets, setSelectedTargets] = useState([]);
-  const [displacementRate, setDisplacementRate] = useState(0.01);
+  const [displacementRate, setDisplacementRate] = useState(0.001);
   const [populationMultiplier, setPopulationMultiplier] = useState(1.0);
   const [filterType, setFilterType] = useState('all');
   const [filterRegion, setFilterRegion] = useState('all');
   const [filterState, setFilterState] = useState('all');
   const [showExport, setShowExport] = useState(false);
   const [showMethodology, setShowMethodology] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [savedScenarios, setSavedScenarios] = useState([]);
+  const [showComparison, setShowComparison] = useState(false);
+  const [customTargets, setCustomTargets] = useState([]);
+  const [showCustomTargetModal, setShowCustomTargetModal] = useState(false);
+  const [customTargetForm, setCustomTargetForm] = useState({
+    name: '',
+    municipality: '',
+    state: '',
+    population: '',
+    type: '',
+    region: '',
+    notes: ''
+  });
+
+  // Read URL parameters on mount to restore shared state
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    const scenarioParam = params.get('scenario');
+    const targetsParam = params.get('targets');
+    const rateParam = params.get('rate');
+    const multParam = params.get('mult');
+
+    if (rateParam) {
+      const rate = parseFloat(rateParam);
+      if (!isNaN(rate) && rate >= 0.001 && rate <= 10) {
+        setDisplacementRate(rate);
+      }
+    }
+
+    if (multParam) {
+      const mult = parseFloat(multParam);
+      if (!isNaN(mult) && mult >= 0.7 && mult <= 1.2) {
+        setPopulationMultiplier(mult);
+      }
+    }
+
+    if (scenarioParam && scenarioParam !== 'custom' && SCENARIO_PRESETS[scenarioParam]) {
+      setSelectedScenario(scenarioParam);
+      setSelectedTargets(SCENARIO_PRESETS[scenarioParam].targets);
+    } else if (targetsParam) {
+      const targetNames = targetsParam.split(',').map(t => decodeURIComponent(t.trim()));
+      const validTargets = targetNames.filter(name =>
+        TARGETS_DATA.some(t => t.name === name)
+      );
+      if (validTargets.length > 0) {
+        setSelectedScenario('custom');
+        setSelectedTargets(validTargets);
+      }
+    }
+  }, []);
+
+  // Merge base targets with custom targets
+  const allTargets = useMemo(() => {
+    return [...TARGETS_DATA, ...customTargets];
+  }, [customTargets]);
 
   const filteredTargets = useMemo(() => {
-    return TARGETS_DATA.filter(t => {
+    return allTargets.filter(t => {
       if (filterType !== 'all' && t.type !== filterType) return false;
       if (filterRegion !== 'all' && t.region !== filterRegion) return false;
       if (filterState !== 'all' && t.state !== filterState) return false;
       return true;
     });
-  }, [filterType, filterRegion, filterState]);
+  }, [filterType, filterRegion, filterState, allTargets]);
 
   const handleScenarioChange = (scenario) => {
     setSelectedScenario(scenario);
@@ -228,9 +337,184 @@ export default function VenezuelaDisplacementDashboard() {
     setSelectedScenario('custom');
   };
 
+  // Custom target form handlers
+  const handleCustomTargetChange = (field, value) => {
+    setCustomTargetForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCustomTargetSubmit = () => {
+    // Validate required fields
+    if (!customTargetForm.name.trim()) {
+      alert('Target name is required');
+      return;
+    }
+    if (!customTargetForm.municipality.trim()) {
+      alert('Municipality is required');
+      return;
+    }
+    if (!customTargetForm.state) {
+      alert('State is required');
+      return;
+    }
+    if (!customTargetForm.population || parseFloat(customTargetForm.population) <= 0) {
+      alert('Population must be a positive number');
+      return;
+    }
+    if (!customTargetForm.type) {
+      alert('Type is required');
+      return;
+    }
+    if (!customTargetForm.region) {
+      alert('Region is required');
+      return;
+    }
+
+    // Check for duplicate name
+    if (allTargets.some(t => t.name.toLowerCase() === customTargetForm.name.trim().toLowerCase())) {
+      alert('A target with this name already exists');
+      return;
+    }
+
+    const newTarget = {
+      name: customTargetForm.name.trim(),
+      municipality: customTargetForm.municipality.trim(),
+      state: customTargetForm.state,
+      population: parseInt(customTargetForm.population),
+      type: customTargetForm.type,
+      region: customTargetForm.region,
+      coast: 'Unknown',
+      urban: 'Unknown',
+      notes: customTargetForm.notes.trim(),
+      isCustom: true,
+      customId: Date.now()
+    };
+
+    setCustomTargets(prev => [...prev, newTarget]);
+    setCustomTargetForm({
+      name: '',
+      municipality: '',
+      state: '',
+      population: '',
+      type: '',
+      region: '',
+      notes: ''
+    });
+    setShowCustomTargetModal(false);
+  };
+
+  const deleteCustomTarget = (customId) => {
+    const target = customTargets.find(t => t.customId === customId);
+    if (target) {
+      setSelectedTargets(prev => prev.filter(name => name !== target.name));
+      setCustomTargets(prev => prev.filter(t => t.customId !== customId));
+    }
+  };
+
+  // Generate shareable URL with current state
+  const generateShareableUrl = () => {
+    const params = new URLSearchParams();
+
+    // Add displacement rate if not default
+    if (displacementRate !== 0.001) {
+      params.set('rate', displacementRate.toString());
+    }
+
+    // Add population multiplier if not default
+    if (populationMultiplier !== 1.0) {
+      params.set('mult', populationMultiplier.toString());
+    }
+
+    // Add scenario or targets
+    if (selectedScenario !== 'custom') {
+      params.set('scenario', selectedScenario);
+    } else if (selectedTargets.length > 0) {
+      params.set('targets', selectedTargets.map(t => encodeURIComponent(t)).join(','));
+    }
+
+    const baseUrl = window.location.origin + window.location.pathname;
+    const queryString = params.toString();
+    return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+  };
+
+  // Copy shareable URL to clipboard
+  const copyShareableUrl = () => {
+    const url = generateShareableUrl();
+    navigator.clipboard.writeText(url).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  };
+
+  // Export scenario data to CSV
+  const exportToCSV = () => {
+    const { selectedData } = calculations;
+    const headers = ['Target', 'Municipality', 'State', 'Type', 'Region', 'Base Population', 'Adjusted Population', 'Displacement Rate (%)', 'Projected Displacement', 'Notes'];
+
+    const rows = selectedData.map(target => {
+      const adjustedPop = Math.round(target.population * populationMultiplier);
+      const displaced = Math.round(adjustedPop * (displacementRate / 100));
+      return [
+        target.name,
+        target.municipality,
+        target.state,
+        target.type,
+        target.region,
+        target.population,
+        adjustedPop,
+        displacementRate,
+        displaced,
+        target.notes || ''
+      ].map(val => `"${String(val).replace(/"/g, '""')}"`).join(',');
+    });
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `venezuela-displacement-scenario-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Save current scenario for comparison
+  const saveCurrentScenario = () => {
+    if (savedScenarios.length >= 3) {
+      alert('Maximum 3 scenarios for comparison. Remove one first.');
+      return;
+    }
+    const scenarioName = selectedScenario !== 'custom'
+      ? SCENARIO_PRESETS[selectedScenario].name
+      : `Custom (${selectedTargets.length} targets)`;
+
+    const newScenario = {
+      id: Date.now(),
+      name: scenarioName,
+      targets: [...selectedTargets],
+      displacementRate,
+      populationMultiplier,
+      calculations: { ...calculations }
+    };
+    setSavedScenarios([...savedScenarios, newScenario]);
+  };
+
+  // Remove a saved scenario
+  const removeScenario = (id) => {
+    setSavedScenarios(savedScenarios.filter(s => s.id !== id));
+  };
+
+  // Load a saved scenario
+  const loadScenario = (scenario) => {
+    setSelectedTargets(scenario.targets);
+    setDisplacementRate(scenario.displacementRate);
+    setPopulationMultiplier(scenario.populationMultiplier);
+    setSelectedScenario('custom');
+    setShowComparison(false);
+  };
+
   // Calculate with municipality deduplication
   const calculations = useMemo(() => {
-    const selectedData = TARGETS_DATA.filter(t => selectedTargets.includes(t.name));
+    const selectedData = allTargets.filter(t => selectedTargets.includes(t.name));
     
     // Deduplicate by municipality - use highest population if multiple targets in same municipality
     const municipalityMap = new Map();
@@ -278,7 +562,7 @@ export default function VenezuelaDisplacementDashboard() {
       deduplicatedCount: uniqueMunicipalities.length,
       rawCount: selectedData.length
     };
-  }, [selectedTargets, displacementRate, populationMultiplier]);
+  }, [selectedTargets, displacementRate, populationMultiplier, allTargets]);
 
   const generateExportText = () => {
     const { selectedData, uniqueMunicipalities, byType, byRegion, totalPop, totalDisplaced, deduplicatedCount, rawCount } = calculations;
@@ -334,7 +618,7 @@ export default function VenezuelaDisplacementDashboard() {
     text += `METHODOLOGY NOTES\n`;
     text += `- Population data: 2011 Venezuelan census (municipal level)\n`;
     text += `- Displacement calculated as ${displacementRate}% of adjusted municipal population\n`;
-    text += `- Default rate (0.01%) reflects minimal/surgical strike assumption\n`;
+    text += `- Default rate (0.001%) reflects minimal strike assumption\n`;
     text += `- Overlapping targets in same municipality are deduplicated to avoid double-counting\n`;
     text += `- This model estimates SHORT-TERM displacement only; multi-year projections require additional modeling\n`;
     text += `- Secondary/ripple effects (neighboring areas fleeing) are not included\n\n`;
@@ -353,440 +637,1219 @@ export default function VenezuelaDisplacementDashboard() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#0a0f14',
+      backgroundColor: '#080b10',
       color: '#e8eaed',
-      fontFamily: "'IBM Plex Sans', -apple-system, sans-serif",
-      padding: '24px',
+      fontFamily: "'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif",
       boxSizing: 'border-box'
     }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-        
-        * { box-sizing: border-box; }
-        
-        .card {
-          background: linear-gradient(135deg, #141a22 0%, #0d1117 100%);
-          border: 1px solid #2a3441;
-          border-radius: 8px;
-          padding: 20px;
-          margin-bottom: 16px;
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        /* ========== ANIMATIONS ========== */
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-        
-        .card-header {
+
+        @keyframes slideIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+
+        @keyframes checkmark {
+          0% { transform: scale(0); }
+          50% { transform: scale(1.2); }
+          100% { transform: scale(1); }
+        }
+
+        /* ========== BASE LAYOUT ========== */
+        .app-container {
+          padding: 24px;
+          max-width: 1600px;
+          margin: 0 auto;
+        }
+
+        .main-grid {
+          display: grid;
+          grid-template-columns: 340px 1fr 380px;
+          gap: 28px;
+        }
+
+        @media (max-width: 1280px) {
+          .main-grid {
+            grid-template-columns: 300px 1fr 340px;
+            gap: 20px;
+          }
+        }
+
+        @media (max-width: 1024px) {
+          .app-container {
+            padding: 16px;
+          }
+          .main-grid {
+            grid-template-columns: 1fr;
+            gap: 20px;
+          }
+          .main-grid > *:nth-child(1) { order: 2; }
+          .main-grid > *:nth-child(2) { order: 3; }
+          .main-grid > *:nth-child(3) { order: 1; }
+        }
+
+        /* ========== HEADER ========== */
+        .app-header {
+          background: linear-gradient(135deg, #0f1419 0%, #080b10 50%, #0a1628 100%);
+          border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+          padding: 32px 24px;
+          margin: -24px -24px 28px -24px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .app-header::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: radial-gradient(ellipse at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
+          pointer-events: none;
+        }
+
+        .app-header-content {
+          position: relative;
+          z-index: 1;
+          max-width: 1600px;
+          margin: 0 auto;
+        }
+
+        .app-title {
+          font-size: 28px;
+          font-weight: 600;
+          margin: 0;
+          color: #f8fafc;
+          letter-spacing: -0.5px;
+          line-height: 1.2;
+        }
+
+        .app-subtitle {
+          color: #8b949e;
+          margin-top: 10px;
+          font-size: 15px;
+          line-height: 1.5;
+          max-width: 680px;
+        }
+
+        .header-brand {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-top: 16px;
+        }
+
+        .brand-tag {
           font-size: 11px;
           font-weight: 600;
           text-transform: uppercase;
-          letter-spacing: 1.2px;
-          color: #7d8590;
-          margin-bottom: 16px;
-          padding-bottom: 12px;
-          border-bottom: 1px solid #2a3441;
+          letter-spacing: 1.5px;
+          color: #60a5fa;
+          background: rgba(59, 130, 246, 0.1);
+          padding: 6px 12px;
+          border-radius: 4px;
+          border: 1px solid rgba(59, 130, 246, 0.2);
         }
-        
+
+        @media (max-width: 1024px) {
+          .app-header {
+            margin: -16px -16px 20px -16px;
+            padding: 24px 16px;
+          }
+          .app-title {
+            font-size: 22px;
+          }
+          .app-subtitle {
+            font-size: 14px;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .app-title {
+            font-size: 19px;
+          }
+          .app-subtitle {
+            font-size: 13px;
+          }
+        }
+
+        /* ========== CARDS ========== */
+        .card {
+          background: linear-gradient(145deg, #12171f 0%, #0c1017 100%);
+          border: 1px solid #1e2a3a;
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 20px;
+          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+          animation: fadeIn 0.3s ease-out;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+          border-color: #2a3a4e;
+        }
+
+        .card-header {
+          font-size: 12px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 1.5px;
+          color: #8b949e;
+          margin-bottom: 20px;
+          padding-bottom: 14px;
+          border-bottom: 1px solid #1e2a3a;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .card-header::before {
+          content: '';
+          width: 3px;
+          height: 14px;
+          background: linear-gradient(180deg, #3b82f6 0%, #8b5cf6 100%);
+          border-radius: 2px;
+        }
+
+        @media (max-width: 1024px) {
+          .card {
+            padding: 20px;
+          }
+        }
+
+        /* ========== BUTTONS ========== */
         .btn {
-          padding: 8px 16px;
-          border-radius: 6px;
-          font-size: 13px;
+          padding: 12px 20px;
+          border-radius: 8px;
+          font-size: 14px;
           font-weight: 500;
           cursor: pointer;
-          transition: all 0.15s ease;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           border: 1px solid transparent;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          position: relative;
+          overflow: hidden;
         }
-        
+
+        .btn:active {
+          transform: scale(0.98);
+        }
+
+        .btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+        }
+
         .btn-primary {
-          background: #2563eb;
+          background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
           color: white;
           border-color: #3b82f6;
+          box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
-        
-        .btn-primary:hover {
-          background: #1d4ed8;
+
+        .btn-primary:hover:not(:disabled) {
+          background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+          box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+          transform: translateY(-1px);
         }
-        
+
         .btn-secondary {
-          background: #1f2937;
-          color: #9ca3af;
-          border-color: #374151;
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          color: #94a3b8;
+          border-color: #334155;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
-        
-        .btn-secondary:hover {
-          background: #374151;
-          color: #e5e7eb;
+
+        .btn-secondary:hover:not(:disabled) {
+          background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+          color: #e2e8f0;
+          border-color: #475569;
+          transform: translateY(-1px);
         }
-        
+
+        .btn-success {
+          background: linear-gradient(135deg, #059669 0%, #047857 100%);
+          color: white;
+          border-color: #10b981;
+        }
+
         .btn-scenario {
           background: transparent;
-          color: #9ca3af;
-          border: 1px solid #2a3441;
+          color: #94a3b8;
+          border: 1px solid #1e2a3a;
           text-align: left;
-          padding: 12px 16px;
+          padding: 14px 18px;
           width: 100%;
-          margin-bottom: 8px;
+          margin-bottom: 10px;
+          border-radius: 10px;
+          position: relative;
         }
-        
+
         .btn-scenario:hover {
           border-color: #3b82f6;
-          color: #e5e7eb;
+          color: #e2e8f0;
+          background: rgba(59, 130, 246, 0.05);
         }
-        
+
         .btn-scenario.active {
-          background: rgba(37, 99, 235, 0.15);
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
           border-color: #3b82f6;
           color: #60a5fa;
+          box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
         }
-        
+
+        .btn-scenario.active::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 3px;
+          height: 60%;
+          background: linear-gradient(180deg, #3b82f6 0%, #8b5cf6 100%);
+          border-radius: 0 2px 2px 0;
+        }
+
+        .scenario-name {
+          font-weight: 500;
+          margin-bottom: 4px;
+          font-size: 14px;
+        }
+
+        .scenario-desc {
+          font-size: 12px;
+          opacity: 0.7;
+          line-height: 1.4;
+        }
+
+        /* ========== SCENARIO DROPDOWN (Mobile) ========== */
+        .scenario-dropdown-container {
+          display: none;
+        }
+
+        .scenario-buttons-container {
+          display: block;
+        }
+
+        @media (max-width: 1024px) {
+          .scenario-dropdown-container {
+            display: block;
+          }
+          .scenario-buttons-container {
+            display: none;
+          }
+        }
+
+        /* ========== SLIDERS ========== */
         .slider-container {
-          margin: 16px 0;
+          margin: 20px 0;
         }
-        
+
+        .slider-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+
+        .slider-label {
+          font-size: 14px;
+          color: #94a3b8;
+          font-weight: 500;
+        }
+
+        .slider-value {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 16px;
+          color: #60a5fa;
+          font-weight: 600;
+          background: rgba(59, 130, 246, 0.1);
+          padding: 4px 10px;
+          border-radius: 6px;
+        }
+
         .slider {
           width: 100%;
-          height: 6px;
-          border-radius: 3px;
-          background: #2a3441;
+          height: 8px;
+          border-radius: 4px;
+          background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
           outline: none;
           -webkit-appearance: none;
+          cursor: pointer;
+          transition: background 0.2s ease;
         }
-        
+
+        .slider:hover {
+          background: linear-gradient(90deg, #334155 0%, #475569 100%);
+        }
+
         .slider::-webkit-slider-thumb {
           -webkit-appearance: none;
-          width: 18px;
-          height: 18px;
+          width: 22px;
+          height: 22px;
           border-radius: 50%;
-          background: #3b82f6;
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
           cursor: pointer;
-          border: 2px solid #60a5fa;
+          border: 3px solid #60a5fa;
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+          transition: all 0.2s ease;
         }
-        
+
+        .slider::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+        }
+
+        .slider::-moz-range-thumb {
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          cursor: pointer;
+          border: 3px solid #60a5fa;
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+        }
+
+        .slider-hints {
+          display: flex;
+          justify-content: space-between;
+          font-size: 11px;
+          color: #64748b;
+          margin-top: 8px;
+        }
+
+        /* ========== SELECT INPUTS ========== */
         .select-input {
-          background: #1a2332;
-          border: 1px solid #2a3441;
-          color: #e8eaed;
-          padding: 10px 14px;
-          border-radius: 6px;
-          font-size: 13px;
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          border: 1px solid #334155;
+          color: #e2e8f0;
+          padding: 12px 16px;
+          border-radius: 8px;
+          font-size: 14px;
           width: 100%;
           cursor: pointer;
+          transition: all 0.2s ease;
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 12px center;
+          padding-right: 36px;
         }
-        
+
+        .select-input:hover {
+          border-color: #475569;
+          background-color: #1e293b;
+        }
+
         .select-input:focus {
           outline: none;
           border-color: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
-        
+
+        .filter-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+
+        @media (max-width: 640px) {
+          .filter-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+          }
+        }
+
+        /* ========== TARGET LIST ========== */
         .target-list {
-          max-height: 400px;
+          max-height: 500px;
           overflow-y: auto;
           padding-right: 8px;
+          margin-right: -8px;
         }
-        
+
         .target-list::-webkit-scrollbar {
-          width: 6px;
+          width: 8px;
         }
-        
+
         .target-list::-webkit-scrollbar-track {
-          background: #1a2332;
-          border-radius: 3px;
+          background: #0f172a;
+          border-radius: 4px;
         }
-        
+
         .target-list::-webkit-scrollbar-thumb {
-          background: #3b4b5c;
-          border-radius: 3px;
+          background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+          border-radius: 4px;
         }
-        
+
+        .target-list::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #475569 0%, #334155 100%);
+        }
+
+        @media (max-width: 1024px) {
+          .target-list {
+            max-height: 400px;
+          }
+        }
+
         .target-item {
           display: flex;
           align-items: flex-start;
-          padding: 12px;
-          margin-bottom: 6px;
-          background: #0d1117;
-          border: 1px solid #2a3441;
-          border-radius: 6px;
+          padding: 16px;
+          margin-bottom: 10px;
+          background: linear-gradient(135deg, #0f172a 0%, #0c1220 100%);
+          border: 1px solid #1e293b;
+          border-radius: 10px;
           cursor: pointer;
-          transition: all 0.15s ease;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        
+
         .target-item:hover {
           border-color: #3b82f6;
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          transform: translateX(4px);
         }
-        
+
         .target-item.selected {
-          background: rgba(37, 99, 235, 0.1);
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
           border-color: #3b82f6;
+          box-shadow: 0 0 24px rgba(59, 130, 246, 0.15), inset 0 0 0 1px rgba(59, 130, 246, 0.1);
         }
-        
+
+        .target-item.selected .target-name {
+          color: #60a5fa;
+        }
+
+        .target-content {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .target-name {
+          font-weight: 500;
+          margin-bottom: 6px;
+          font-size: 14px;
+          color: #e2e8f0;
+          line-height: 1.3;
+          word-wrap: break-word;
+        }
+
+        .target-location {
+          font-size: 13px;
+          color: #64748b;
+          margin-bottom: 10px;
+        }
+
+        .target-stats {
+          text-align: right;
+          flex-shrink: 0;
+          margin-left: 16px;
+        }
+
+        .target-stat-value {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 15px;
+          font-weight: 500;
+        }
+
+        .target-stat-label {
+          font-size: 11px;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        @media (max-width: 640px) {
+          .target-item {
+            flex-direction: column;
+          }
+          .target-stats {
+            text-align: left;
+            margin-left: 30px;
+            margin-top: 10px;
+          }
+        }
+
+        /* ========== CHECKBOXES ========== */
         .checkbox {
-          width: 18px;
-          height: 18px;
-          border: 2px solid #4b5563;
-          border-radius: 4px;
-          margin-right: 12px;
+          width: 20px;
+          height: 20px;
+          border: 2px solid #475569;
+          border-radius: 5px;
+          margin-right: 14px;
           flex-shrink: 0;
           display: flex;
           align-items: center;
           justify-content: center;
           margin-top: 2px;
+          transition: all 0.2s ease;
+          background: #0f172a;
         }
-        
+
         .checkbox.checked {
-          background: #2563eb;
-          border-color: #3b82f6;
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          border-color: #60a5fa;
+          animation: checkmark 0.2s ease-out;
         }
-        
+
+        .checkbox svg {
+          opacity: 0;
+          transform: scale(0);
+          transition: all 0.2s ease;
+        }
+
+        .checkbox.checked svg {
+          opacity: 1;
+          transform: scale(1);
+        }
+
+        /* ========== TAGS ========== */
+        .tags-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .tag {
+          display: inline-block;
+          padding: 4px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.3px;
+        }
+
+        .tag-type {
+          background: rgba(139, 92, 246, 0.15);
+          color: #a78bfa;
+          border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .tag-region {
+          background: rgba(16, 185, 129, 0.15);
+          color: #6ee7b7;
+          border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        /* ========== STAT BOXES ========== */
         .stat-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
+          gap: 14px;
         }
-        
+
+        @media (max-width: 480px) {
+          .stat-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+        }
+
         .stat-box {
-          background: #0d1117;
-          border: 1px solid #2a3441;
-          border-radius: 8px;
-          padding: 16px;
+          background: linear-gradient(145deg, #0f172a 0%, #0c1220 100%);
+          border: 1px solid #1e293b;
+          border-radius: 10px;
+          padding: 18px 14px;
           text-align: center;
-          overflow: hidden;
+          transition: all 0.2s ease;
         }
-        
+
+        .stat-box:hover {
+          border-color: #334155;
+          transform: translateY(-2px);
+        }
+
         .stat-value {
           font-family: 'IBM Plex Mono', monospace;
-          font-size: 22px;
+          font-size: 24px;
           font-weight: 600;
           color: #60a5fa;
-          margin-bottom: 4px;
-          word-wrap: break-word;
+          margin-bottom: 6px;
+          line-height: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
-        
+
+        .stat-value-large {
+          font-size: 20px;
+        }
+
         .stat-value-red {
           color: #f87171;
         }
-        
+
         .stat-label {
-          font-size: 10px;
+          font-size: 11px;
           text-transform: uppercase;
           letter-spacing: 1px;
-          color: #7d8590;
+          color: #64748b;
+          font-weight: 500;
         }
-        
+
+        /* ========== BREAKDOWN ROWS ========== */
         .breakdown-row {
           display: flex;
           justify-content: space-between;
-          padding: 10px 0;
-          border-bottom: 1px solid #1f2937;
-          font-size: 13px;
+          align-items: center;
+          padding: 12px 0;
+          border-bottom: 1px solid #1e293b;
+          font-size: 14px;
+          transition: background 0.15s ease;
         }
-        
+
+        .breakdown-row:hover {
+          background: rgba(59, 130, 246, 0.03);
+          margin: 0 -12px;
+          padding: 12px;
+          border-radius: 6px;
+        }
+
         .breakdown-row:last-child {
           border-bottom: none;
         }
-        
-        .tag {
-          display: inline-block;
-          padding: 2px 8px;
-          border-radius: 4px;
-          font-size: 11px;
+
+        .breakdown-label {
+          color: #94a3b8;
+        }
+
+        .breakdown-count {
+          color: #64748b;
+          font-size: 13px;
+        }
+
+        .breakdown-value {
+          font-family: 'IBM Plex Mono', monospace;
+          color: #60a5fa;
           font-weight: 500;
-          margin-right: 6px;
         }
-        
-        .tag-type {
-          background: rgba(139, 92, 246, 0.2);
-          color: #a78bfa;
-        }
-        
-        .tag-region {
-          background: rgba(16, 185, 129, 0.2);
-          color: #6ee7b7;
-        }
-        
+
+        /* ========== MODALS ========== */
         .modal-overlay {
           position: fixed;
           top: 0;
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0, 0, 0, 0.8);
+          background: rgba(0, 0, 0, 0.85);
+          backdrop-filter: blur(4px);
           display: flex;
           align-items: center;
           justify-content: center;
           z-index: 1000;
-          padding: 24px;
+          padding: 20px;
+          animation: fadeIn 0.2s ease-out;
         }
-        
+
         .modal-content {
-          background: #141a22;
-          border: 1px solid #2a3441;
-          border-radius: 12px;
+          background: linear-gradient(145deg, #12171f 0%, #0c1017 100%);
+          border: 1px solid #1e2a3a;
+          border-radius: 16px;
           max-width: 800px;
           width: 100%;
-          max-height: 80vh;
+          max-height: 85vh;
           overflow: hidden;
           display: flex;
           flex-direction: column;
+          box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+          animation: slideIn 0.25s ease-out;
         }
-        
+
+        .modal-content-wide {
+          max-width: 1000px;
+        }
+
         .modal-header {
-          padding: 20px 24px;
-          border-bottom: 1px solid #2a3441;
+          padding: 24px 28px;
+          border-bottom: 1px solid #1e2a3a;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+
+        .modal-title {
+          margin: 0;
+          font-size: 18px;
+          font-weight: 600;
+          color: #f1f5f9;
+        }
+
+        .modal-body {
+          padding: 28px;
+          overflow-y: auto;
+          flex: 1;
+        }
+
+        .modal-body h4 {
+          color: #f1f5f9;
+          font-size: 16px;
+          margin-top: 24px;
+          margin-bottom: 12px;
+        }
+
+        .modal-body h4:first-child {
+          margin-top: 0;
+        }
+
+        .modal-body p {
+          color: #94a3b8;
+          line-height: 1.7;
+          font-size: 14px;
+        }
+
+        .modal-body ul {
+          color: #94a3b8;
+          line-height: 1.8;
+          font-size: 14px;
+          padding-left: 20px;
+        }
+
+        .modal-body li {
+          margin-bottom: 8px;
+        }
+
+        @media (max-width: 640px) {
+          .modal-header {
+            padding: 20px;
+          }
+          .modal-body {
+            padding: 20px;
+          }
+          .modal-title {
+            font-size: 16px;
+          }
+        }
+
+        /* ========== EXPORT TEXT ========== */
+        .export-text {
+          background: #080b10;
+          border: 1px solid #1e2a3a;
+          border-radius: 8px;
+          padding: 20px;
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 12px;
+          line-height: 1.7;
+          white-space: pre-wrap;
+          color: #94a3b8;
+          max-height: 400px;
+          overflow-y: auto;
+        }
+
+        /* ========== INFO BOX ========== */
+        .info-box {
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          padding: 16px;
+          border-radius: 10px;
+          font-size: 13px;
+          color: #8b949e;
+          margin-top: 16px;
+          line-height: 1.6;
+          border: 1px solid #334155;
+        }
+
+        .info-box strong {
+          color: #60a5fa;
+          font-weight: 500;
+        }
+
+        /* ========== ATTRIBUTION ========== */
+        .attribution {
+          font-size: 12px;
+          color: #64748b;
+          text-align: center;
+          padding-top: 20px;
+          border-top: 1px solid #1e293b;
+          margin-top: 20px;
+          line-height: 1.7;
+        }
+
+        .attribution strong {
+          color: #94a3b8;
+          font-weight: 500;
+        }
+
+        .link {
+          color: #60a5fa;
+          text-decoration: none;
+          transition: color 0.15s ease;
+        }
+
+        .link:hover {
+          color: #93c5fd;
+          text-decoration: underline;
+        }
+
+        /* ========== DEDUP NOTE ========== */
+        .dedup-note {
+          font-size: 12px;
+          color: #fbbf24;
+          margin-top: 12px;
+          padding: 12px;
+          background: rgba(251, 191, 36, 0.1);
+          border-radius: 8px;
+          border: 1px solid rgba(251, 191, 36, 0.2);
+          line-height: 1.5;
+        }
+
+        /* ========== ACTION BUTTONS CONTAINER ========== */
+        .action-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        /* ========== COMPARISON MODAL ========== */
+        .comparison-grid {
+          display: grid;
+          gap: 20px;
+        }
+
+        .comparison-card {
+          background: linear-gradient(145deg, #0f172a 0%, #0c1220 100%);
+          border: 1px solid #1e293b;
+          border-radius: 12px;
+          padding: 20px;
+          transition: all 0.2s ease;
+        }
+
+        .comparison-card:hover {
+          border-color: #334155;
+        }
+
+        .comparison-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+          padding-bottom: 14px;
+          border-bottom: 1px solid #1e293b;
+        }
+
+        .comparison-title {
+          margin: 0;
+          font-size: 15px;
+          color: #f1f5f9;
+          font-weight: 500;
+        }
+
+        .comparison-remove {
+          background: transparent;
+          border: none;
+          color: #f87171;
+          cursor: pointer;
+          font-size: 20px;
+          padding: 4px 8px;
+          border-radius: 4px;
+          transition: all 0.15s ease;
+        }
+
+        .comparison-remove:hover {
+          background: rgba(248, 113, 113, 0.1);
+        }
+
+        .comparison-stat {
+          margin-bottom: 18px;
+        }
+
+        .comparison-stat-label {
+          font-size: 11px;
+          color: #64748b;
+          margin-bottom: 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .comparison-stat-value {
+          font-size: 26px;
+          font-family: 'IBM Plex Mono', monospace;
+          font-weight: 600;
+        }
+
+        .comparison-stat-sub {
+          font-size: 11px;
+          color: #64748b;
+        }
+
+        .comparison-summary {
+          margin-top: 28px;
+          padding: 20px;
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          border-radius: 12px;
+          border: 1px solid #334155;
+        }
+
+        .comparison-summary-title {
+          font-size: 11px;
+          color: #64748b;
+          margin-bottom: 16px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .comparison-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 16px;
+          text-align: center;
+        }
+
+        @media (max-width: 640px) {
+          .comparison-summary-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+        }
+
+        .summary-item-label {
+          font-size: 11px;
+          color: #64748b;
+          margin-bottom: 6px;
+        }
+
+        .summary-item-value {
+          font-size: 18px;
+          font-family: 'IBM Plex Mono', monospace;
+          font-weight: 600;
+        }
+
+        /* ========== TARGET COUNT ========== */
+        .target-count {
+          font-size: 13px;
+          color: #64748b;
+          margin-bottom: 16px;
+          padding: 10px 14px;
+          background: #0f172a;
+          border-radius: 8px;
           display: flex;
           justify-content: space-between;
           align-items: center;
         }
-        
-        .modal-body {
-          padding: 24px;
-          overflow-y: auto;
-          flex: 1;
-        }
-        
-        .export-text {
-          background: #0a0f14;
-          border: 1px solid #2a3441;
-          border-radius: 6px;
-          padding: 16px;
-          font-family: 'IBM Plex Mono', monospace;
-          font-size: 12px;
-          line-height: 1.6;
-          white-space: pre-wrap;
-          color: #9ca3af;
-          max-height: 400px;
-          overflow-y: auto;
-        }
-        
-        .info-box {
-          background: #1a2332;
-          padding: 12px;
-          border-radius: 6px;
-          font-size: 11px;
-          color: #7d8590;
-          margin-top: 12px;
-          line-height: 1.5;
-        }
-        
-        .info-box strong {
-          color: #9ca3af;
-        }
-        
-        .attribution {
-          font-size: 11px;
-          color: #6b7280;
-          text-align: center;
-          padding-top: 16px;
-          border-top: 1px solid #1f2937;
-          margin-top: 16px;
-          line-height: 1.6;
-        }
-        
-        .link {
+
+        .target-count-highlight {
           color: #60a5fa;
-          text-decoration: none;
+          font-weight: 500;
         }
-        
-        .link:hover {
-          text-decoration: underline;
-        }
-        
-        .dedup-note {
-          font-size: 11px;
-          color: #f59e0b;
-          margin-top: 8px;
-          padding: 8px;
-          background: rgba(245, 158, 11, 0.1);
+
+        /* ========== CUSTOM TARGET ========== */
+        .custom-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 2px 8px;
+          background: rgba(251, 191, 36, 0.15);
+          border: 1px solid rgba(251, 191, 36, 0.3);
           border-radius: 4px;
+          font-size: 10px;
+          font-weight: 500;
+          color: #fbbf24;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .delete-custom-btn {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          background: rgba(248, 113, 113, 0.1);
+          border: 1px solid rgba(248, 113, 113, 0.3);
+          color: #f87171;
+          width: 24px;
+          height: 24px;
+          border-radius: 4px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          transition: all 0.15s ease;
+          opacity: 0;
+        }
+
+        .target-item:hover .delete-custom-btn {
+          opacity: 1;
+        }
+
+        .delete-custom-btn:hover {
+          background: rgba(248, 113, 113, 0.2);
+          border-color: #f87171;
+        }
+
+        /* ========== CUSTOM TARGET FORM ========== */
+        .form-group {
+          margin-bottom: 20px;
+        }
+
+        .form-label {
+          display: block;
+          font-size: 13px;
+          font-weight: 500;
+          color: #94a3b8;
+          margin-bottom: 8px;
+        }
+
+        .form-label .required {
+          color: #f87171;
+          margin-left: 2px;
+        }
+
+        .form-input {
+          width: 100%;
+          padding: 12px 14px;
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          border: 1px solid #334155;
+          border-radius: 8px;
+          color: #e2e8f0;
+          font-size: 14px;
+          transition: all 0.2s ease;
+        }
+
+        .form-input:focus {
+          outline: none;
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .form-input::placeholder {
+          color: #64748b;
+        }
+
+        .form-textarea {
+          min-height: 80px;
+          resize: vertical;
+        }
+
+        .form-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+
+        @media (max-width: 640px) {
+          .form-row {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .form-actions {
+          display: flex;
+          gap: 12px;
+          justify-content: flex-end;
+          margin-top: 24px;
+          padding-top: 20px;
+          border-top: 1px solid #1e2a3a;
         }
       `}</style>
 
       {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ 
-          fontSize: '24px', 
-          fontWeight: 600, 
-          margin: 0,
-          color: '#f3f4f6'
-        }}>
-          Venezuela Strike Displacement Scenario Builder
-        </h1>
-        <p style={{ 
-          color: '#7d8590', 
-          marginTop: '8px',
-          fontSize: '14px'
-        }}>
-          Model projected short-term civilian displacement from hypothetical U.S. strikes on Venezuelan military and strategic targets
-        </p>
-        <button 
-          className="btn btn-secondary" 
-          style={{ marginTop: '12px', fontSize: '12px', padding: '6px 12px' }}
-          onClick={() => setShowMethodology(true)}
-        >
-          View Methodology & Limitations
-        </button>
-      </div>
+      <header className="app-header">
+        <div className="app-header-content">
+          <h1 className="app-title">Venezuela Strike Displacement Scenario Builder</h1>
+          <p className="app-subtitle">
+            Model projected short-term civilian displacement from hypothetical U.S. strikes on Venezuelan military and strategic targets
+          </p>
+          <div className="header-brand">
+            <span className="brand-tag">Niskanen Center</span>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '8px 14px', fontSize: '13px' }}
+              onClick={() => setShowMethodology(true)}
+            >
+              Methodology & Limitations
+            </button>
+          </div>
+        </div>
+      </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr 340px', gap: '24px' }}>
+      <div className="app-container">
+        <div className="main-grid">
         
         {/* Left Column - Scenario Selection */}
         <div>
           <div className="card">
             <div className="card-header">Scenario Presets</div>
-            {Object.entries(SCENARIO_PRESETS).map(([key, scenario]) => (
-              <button
-                key={key}
-                className={`btn btn-scenario ${selectedScenario === key ? 'active' : ''}`}
-                onClick={() => handleScenarioChange(key)}
+
+            {/* Mobile Dropdown */}
+            <div className="scenario-dropdown-container">
+              <select
+                className="select-input"
+                value={selectedScenario}
+                onChange={(e) => handleScenarioChange(e.target.value)}
               >
-                <div style={{ fontWeight: 500, marginBottom: '4px' }}>{scenario.name}</div>
-                <div style={{ fontSize: '11px', opacity: 0.7 }}>{scenario.description}</div>
-              </button>
-            ))}
+                {Object.entries(SCENARIO_PRESETS).map(([key, scenario]) => (
+                  <option key={key} value={key}>{scenario.name}</option>
+                ))}
+              </select>
+              {selectedScenario !== 'custom' && (
+                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '10px', lineHeight: '1.5' }}>
+                  {SCENARIO_PRESETS[selectedScenario].description}
+                </p>
+              )}
+            </div>
+
+            {/* Desktop Buttons */}
+            <div className="scenario-buttons-container">
+              {Object.entries(SCENARIO_PRESETS).map(([key, scenario]) => (
+                <button
+                  key={key}
+                  className={`btn btn-scenario ${selectedScenario === key ? 'active' : ''}`}
+                  onClick={() => handleScenarioChange(key)}
+                >
+                  <div className="scenario-name">{scenario.name}</div>
+                  <div className="scenario-desc">{scenario.description}</div>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="card">
             <div className="card-header">Parameters</div>
-            
+
             <div className="slider-container">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '13px', color: '#9ca3af' }}>Displacement Rate</span>
-                <span style={{ 
-                  fontFamily: 'IBM Plex Mono', 
-                  fontSize: '14px',
-                  color: '#60a5fa',
-                  fontWeight: 500
-                }}>
-                  {displacementRate}%
-                </span>
+              <div className="slider-header">
+                <span className="slider-label">Displacement Rate</span>
+                <span className="slider-value">{displacementRate}%</span>
               </div>
               <input
                 type="range"
                 className="slider"
-                min="0.01"
+                min="0.001"
                 max="10"
-                step="0.01"
+                step="0.001"
                 value={displacementRate}
                 onChange={(e) => setDisplacementRate(parseFloat(e.target.value))}
               />
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                fontSize: '10px', 
-                color: '#6b7280',
-                marginTop: '4px'
-              }}>
-                <span>0.01% (surgical)</span>
+              <div className="slider-hints">
+                <span>0.001% (minimal)</span>
                 <span>10% (major)</span>
               </div>
             </div>
 
             <div className="slider-container">
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span style={{ fontSize: '13px', color: '#9ca3af' }}>Population Multiplier</span>
-                <span style={{ 
-                  fontFamily: 'IBM Plex Mono', 
-                  fontSize: '14px',
-                  color: '#60a5fa',
-                  fontWeight: 500
-                }}>
-                  {populationMultiplier.toFixed(2)}x
-                </span>
+              <div className="slider-header">
+                <span className="slider-label">Population Multiplier</span>
+                <span className="slider-value">{populationMultiplier.toFixed(2)}x</span>
               </div>
               <input
                 type="range"
@@ -797,20 +1860,14 @@ export default function VenezuelaDisplacementDashboard() {
                 value={populationMultiplier}
                 onChange={(e) => setPopulationMultiplier(parseFloat(e.target.value))}
               />
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                fontSize: '10px', 
-                color: '#6b7280',
-                marginTop: '4px'
-              }}>
+              <div className="slider-hints">
                 <span>0.7x (emigration)</span>
                 <span>1.2x (growth)</span>
               </div>
             </div>
 
             <div className="info-box">
-              <strong>Displacement Rate:</strong> Default (0.01%) reflects minimal/surgical strike. Increase for larger strike intensity or broader evacuation scenarios.<br/><br/>
+              <strong>Displacement Rate:</strong> Default (0.001%) reflects minimal impact. Increase for larger strike intensity or broader evacuation scenarios.<br/><br/>
               <strong>Population Multiplier:</strong> Adjusts 2011 census data for population changes. Use &lt;1.0 to account for Venezuela's significant emigration since 2011, or &gt;1.0 if modeling areas with population growth.
             </div>
           </div>
@@ -831,9 +1888,9 @@ export default function VenezuelaDisplacementDashboard() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-              <select 
-                className="select-input" 
+            <div className="filter-grid">
+              <select
+                className="select-input"
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
               >
@@ -841,7 +1898,7 @@ export default function VenezuelaDisplacementDashboard() {
                   <option key={t} value={t}>{t === 'all' ? 'All Types' : t}</option>
                 ))}
               </select>
-              <select 
+              <select
                 className="select-input"
                 value={filterRegion}
                 onChange={(e) => setFilterRegion(e.target.value)}
@@ -850,7 +1907,7 @@ export default function VenezuelaDisplacementDashboard() {
                   <option key={r} value={r}>{r === 'all' ? 'All Regions' : r}</option>
                 ))}
               </select>
-              <select 
+              <select
                 className="select-input"
                 value={filterState}
                 onChange={(e) => setFilterState(e.target.value)}
@@ -861,8 +1918,17 @@ export default function VenezuelaDisplacementDashboard() {
               </select>
             </div>
 
-            <div style={{ fontSize: '12px', color: '#7d8590', marginBottom: '12px' }}>
-              Showing {filteredTargets.length} targets · {selectedTargets.length} selected
+            <button
+              className="btn btn-secondary"
+              style={{ width: '100%', marginBottom: '16px' }}
+              onClick={() => setShowCustomTargetModal(true)}
+            >
+              + Create Custom Target
+            </button>
+
+            <div className="target-count">
+              <span>Showing <span className="target-count-highlight">{filteredTargets.length}</span> targets</span>
+              <span><span className="target-count-highlight">{selectedTargets.length}</span> selected</span>
             </div>
 
             <div className="target-list">
@@ -870,52 +1936,58 @@ export default function VenezuelaDisplacementDashboard() {
                 const isSelected = selectedTargets.includes(target.name);
                 const adjustedPop = Math.round(target.population * populationMultiplier);
                 const displaced = Math.round(adjustedPop * (displacementRate / 100));
-                
+
                 return (
-                  <div 
+                  <div
                     key={target.name}
                     className={`target-item ${isSelected ? 'selected' : ''}`}
                     onClick={() => toggleTarget(target.name)}
+                    style={{ position: 'relative' }}
                   >
+                    {target.isCustom && (
+                      <button
+                        className="delete-custom-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteCustomTarget(target.customId);
+                        }}
+                        title="Delete custom target"
+                      >
+                        ×
+                      </button>
+                    )}
                     <div className={`checkbox ${isSelected ? 'checked' : ''}`}>
-                      {isSelected && (
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 500, marginBottom: '4px' }}>{target.name}</div>
-                      <div style={{ fontSize: '12px', color: '#7d8590', marginBottom: '6px' }}>
+                    <div className="target-content">
+                      <div className="target-name">
+                        {target.name}
+                        {target.isCustom && <span className="custom-badge" style={{ marginLeft: '8px' }}>Custom</span>}
+                      </div>
+                      <div className="target-location">
                         {target.municipality}, {target.state}
                       </div>
-                      <div>
+                      <div className="tags-container">
                         <span className="tag tag-type">{target.type}</span>
                         <span className="tag tag-region">{target.region}</span>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div className="target-stats">
                       {isSelected ? (
                         <>
-                          <div style={{ 
-                            fontFamily: 'IBM Plex Mono', 
-                            fontSize: '14px',
-                            color: '#60a5fa'
-                          }}>
+                          <div className="target-stat-value" style={{ color: '#60a5fa' }}>
                             {displaced.toLocaleString()}
                           </div>
-                          <div style={{ fontSize: '10px', color: '#6b7280' }}>displaced</div>
+                          <div className="target-stat-label">displaced</div>
                         </>
                       ) : (
                         <>
-                          <div style={{ 
-                            fontFamily: 'IBM Plex Mono', 
-                            fontSize: '14px',
-                            color: '#6b7280'
-                          }}>
+                          <div className="target-stat-value" style={{ color: '#64748b' }}>
                             {adjustedPop.toLocaleString()}
                           </div>
-                          <div style={{ fontSize: '10px', color: '#6b7280' }}>population</div>
+                          <div className="target-stat-label">population</div>
                         </>
                       )}
                     </div>
@@ -930,26 +2002,26 @@ export default function VenezuelaDisplacementDashboard() {
         <div>
           <div className="card">
             <div className="card-header">Scenario Summary</div>
-            
+
             <div className="stat-grid">
               <div className="stat-box">
                 <div className="stat-value">{calculations.deduplicatedCount}</div>
                 <div className="stat-label">Municipalities</div>
               </div>
               <div className="stat-box">
-                <div className="stat-value" style={{ fontSize: '18px' }}>
+                <div className="stat-value stat-value-large">
                   {calculations.totalPop.toLocaleString()}
                 </div>
                 <div className="stat-label">Affected Pop.</div>
               </div>
               <div className="stat-box">
-                <div className="stat-value stat-value-red" style={{ fontSize: '18px' }}>
+                <div className="stat-value stat-value-large stat-value-red">
                   {calculations.totalDisplaced.toLocaleString()}
                 </div>
                 <div className="stat-label">Displaced</div>
               </div>
             </div>
-            
+
             {calculations.rawCount !== calculations.deduplicatedCount && (
               <div className="dedup-note">
                 Note: {calculations.rawCount} targets selected across {calculations.deduplicatedCount} unique municipalities. Overlapping populations deduplicated.
@@ -960,7 +2032,7 @@ export default function VenezuelaDisplacementDashboard() {
           <div className="card">
             <div className="card-header">Breakdown by Type</div>
             {Object.entries(calculations.byType).length === 0 ? (
-              <div style={{ color: '#6b7280', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
+              <div style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', padding: '24px' }}>
                 No targets selected
               </div>
             ) : (
@@ -968,10 +2040,11 @@ export default function VenezuelaDisplacementDashboard() {
                 .sort((a, b) => b[1].displaced - a[1].displaced)
                 .map(([type, data]) => (
                   <div key={type} className="breakdown-row">
-                    <span style={{ color: '#9ca3af' }}>
-                      {type} <span style={{ color: '#6b7280' }}>({data.count})</span>
+                    <span>
+                      <span className="breakdown-label">{type}</span>
+                      <span className="breakdown-count"> ({data.count})</span>
                     </span>
-                    <span style={{ fontFamily: 'IBM Plex Mono', color: '#60a5fa' }}>
+                    <span className="breakdown-value">
                       {data.displaced.toLocaleString()}
                     </span>
                   </div>
@@ -982,7 +2055,7 @@ export default function VenezuelaDisplacementDashboard() {
           <div className="card">
             <div className="card-header">Breakdown by Region</div>
             {Object.entries(calculations.byRegion).length === 0 ? (
-              <div style={{ color: '#6b7280', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
+              <div style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', padding: '24px' }}>
                 No targets selected
               </div>
             ) : (
@@ -990,10 +2063,11 @@ export default function VenezuelaDisplacementDashboard() {
                 .sort((a, b) => b[1].displaced - a[1].displaced)
                 .map(([region, data]) => (
                   <div key={region} className="breakdown-row">
-                    <span style={{ color: '#9ca3af' }}>
-                      {region} <span style={{ color: '#6b7280' }}>({data.count})</span>
+                    <span>
+                      <span className="breakdown-label">{region}</span>
+                      <span className="breakdown-count"> ({data.count})</span>
                     </span>
-                    <span style={{ fontFamily: 'IBM Plex Mono', color: '#60a5fa' }}>
+                    <span className="breakdown-value">
                       {data.displaced.toLocaleString()}
                     </span>
                   </div>
@@ -1001,19 +2075,59 @@ export default function VenezuelaDisplacementDashboard() {
             )}
           </div>
 
-          <button 
-            className="btn btn-primary" 
-            style={{ width: '100%', padding: '14px' }}
-            onClick={() => setShowExport(true)}
-            disabled={selectedTargets.length === 0}
-          >
-            Export Scenario Report
-          </button>
+          <div className="action-buttons">
+            <button
+              className="btn btn-secondary"
+              style={{ width: '100%' }}
+              onClick={copyShareableUrl}
+              disabled={selectedTargets.length === 0}
+            >
+              {linkCopied ? '✓ Link Copied!' : 'Share Scenario Link'}
+            </button>
+
+            <button
+              className="btn btn-secondary"
+              style={{ width: '100%' }}
+              onClick={exportToCSV}
+              disabled={selectedTargets.length === 0}
+            >
+              Export to CSV
+            </button>
+
+            <button
+              className="btn btn-primary"
+              style={{ width: '100%' }}
+              onClick={() => setShowExport(true)}
+              disabled={selectedTargets.length === 0}
+            >
+              Export Scenario Report
+            </button>
+
+            <button
+              className="btn btn-secondary"
+              style={{ width: '100%' }}
+              onClick={saveCurrentScenario}
+              disabled={selectedTargets.length === 0}
+            >
+              Save for Comparison ({savedScenarios.length}/3)
+            </button>
+
+            {savedScenarios.length > 0 && (
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+                onClick={() => setShowComparison(true)}
+              >
+                Compare Scenarios ({savedScenarios.length})
+              </button>
+            )}
+          </div>
 
           <div className="attribution">
             <strong>Gil Guerra and Claire Holba</strong>, Niskanen Center<br/>
             Corrections & questions: <a href="mailto:gguerra@niskanencenter.org" className="link">gguerra@niskanencenter.org</a>
           </div>
+        </div>
         </div>
       </div>
 
@@ -1022,9 +2136,9 @@ export default function VenezuelaDisplacementDashboard() {
         <div className="modal-overlay" onClick={() => setShowExport(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 style={{ margin: 0, fontSize: '16px' }}>Export Scenario Report</h3>
-              <div>
-                <button className="btn btn-primary" onClick={copyToClipboard} style={{ marginRight: '8px' }}>
+              <h3 className="modal-title">Export Scenario Report</h3>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button className="btn btn-primary" onClick={copyToClipboard}>
                   Copy to Clipboard
                 </button>
                 <button className="btn btn-secondary" onClick={() => setShowExport(false)}>
@@ -1046,32 +2160,264 @@ export default function VenezuelaDisplacementDashboard() {
         <div className="modal-overlay" onClick={() => setShowMethodology(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 style={{ margin: 0, fontSize: '16px' }}>Methodology & Limitations</h3>
+              <h3 className="modal-title">Methodology & Limitations</h3>
               <button className="btn btn-secondary" onClick={() => setShowMethodology(false)}>
                 Close
               </button>
             </div>
-            <div className="modal-body" style={{ lineHeight: 1.7, color: '#9ca3af' }}>
-              <h4 style={{ color: '#e8eaed', marginTop: 0 }}>Data Sources</h4>
+            <div className="modal-body">
+              <h4>Data Sources</h4>
               <p>Population figures are derived from the 2011 Venezuelan census at the municipal level. The population multiplier allows adjustment for demographic changes since 2011, including Venezuela's significant emigration wave.</p>
-              
-              <h4 style={{ color: '#e8eaed' }}>Displacement Calculation</h4>
+
+              <h4>Displacement Calculation</h4>
               <p>Projected displacement = (Municipal Population × Population Multiplier) × Displacement Rate</p>
-              <p>The default displacement rate of 0.01% reflects a minimal/surgical strike assumption. Users should adjust based on strike intensity, evacuation patterns, and conflict duration being modeled.</p>
-              
-              <h4 style={{ color: '#e8eaed' }}>Deduplication</h4>
+              <p>The default displacement rate of 0.001% reflects a minimal strike assumption. Users should adjust based on strike intensity, evacuation patterns, and conflict duration being modeled.</p>
+
+              <h4>Deduplication</h4>
               <p>When multiple targets are selected within the same municipality, the affected population is counted only once to avoid double-counting. The highest population figure among overlapping targets is used.</p>
-              
-              <h4 style={{ color: '#e8eaed' }}>Limitations</h4>
-              <ul style={{ paddingLeft: '20px' }}>
+
+              <h4>Limitations</h4>
+              <ul>
                 <li><strong>Short-term only:</strong> This model estimates immediate/short-term displacement. Multi-year projections require additional modeling of conflict duration, economic collapse, and cascading effects.</li>
                 <li><strong>No ripple effects:</strong> Secondary displacement from neighboring areas (people fleeing due to fear/instability rather than direct strikes) is not included.</li>
                 <li><strong>Municipal-level granularity:</strong> Population is attributed at the municipal level; actual displacement patterns would vary based on precise strike locations within municipalities.</li>
                 <li><strong>Census age:</strong> 2011 data may not reflect current population distribution, particularly in areas affected by internal migration.</li>
               </ul>
-              
-              <h4 style={{ color: '#e8eaed' }}>Contact</h4>
+
+              <h4>Contact</h4>
               <p>For corrections, questions, or methodological inquiries: <a href="mailto:gguerra@niskanencenter.org" className="link">gguerra@niskanencenter.org</a></p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Target Modal */}
+      {showCustomTargetModal && (
+        <div className="modal-overlay" onClick={() => setShowCustomTargetModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Create Custom Target</h3>
+              <button className="btn btn-secondary" onClick={() => setShowCustomTargetModal(false)}>
+                Close
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">
+                    Target Name <span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g., Custom Military Base"
+                    value={customTargetForm.name}
+                    onChange={(e) => handleCustomTargetChange('name', e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">
+                    Municipality <span className="required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g., Libertador"
+                    value={customTargetForm.municipality}
+                    onChange={(e) => handleCustomTargetChange('municipality', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">
+                    State <span className="required">*</span>
+                  </label>
+                  <select
+                    className="form-input"
+                    value={customTargetForm.state}
+                    onChange={(e) => handleCustomTargetChange('state', e.target.value)}
+                  >
+                    <option value="">Select State...</option>
+                    {ALL_STATES.filter(s => s !== 'all').map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">
+                    Population <span className="required">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="e.g., 50000"
+                    min="1"
+                    value={customTargetForm.population}
+                    onChange={(e) => handleCustomTargetChange('population', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">
+                    Type <span className="required">*</span>
+                  </label>
+                  <select
+                    className="form-input"
+                    value={customTargetForm.type}
+                    onChange={(e) => handleCustomTargetChange('type', e.target.value)}
+                  >
+                    <option value="">Select Type...</option>
+                    <option value="Air Base">Air Base</option>
+                    <option value="Army Fort">Army Fort</option>
+                    <option value="Naval Port">Naval Port</option>
+                    <option value="Drug Trafficking Region">Drug Trafficking Region</option>
+                    <option value="Urban Center">Urban Center</option>
+                    <option value="Air Defense Site">Air Defense Site</option>
+                    <option value="Communications Site">Communications Site</option>
+                    <option value="Radar Station">Radar Station</option>
+                    <option value="Custom">Custom</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">
+                    Region <span className="required">*</span>
+                  </label>
+                  <select
+                    className="form-input"
+                    value={customTargetForm.region}
+                    onChange={(e) => handleCustomTargetChange('region', e.target.value)}
+                  >
+                    <option value="">Select Region...</option>
+                    {ALL_REGIONS.filter(r => r !== 'all').map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Notes (optional)</label>
+                <textarea
+                  className="form-input form-textarea"
+                  placeholder="Additional information about this target..."
+                  value={customTargetForm.notes}
+                  onChange={(e) => handleCustomTargetChange('notes', e.target.value)}
+                />
+              </div>
+
+              <div className="form-actions">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowCustomTargetModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleCustomTargetSubmit}
+                >
+                  Create Target
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comparison Modal */}
+      {showComparison && (
+        <div className="modal-overlay" onClick={() => setShowComparison(false)}>
+          <div className="modal-content modal-content-wide" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Scenario Comparison</h3>
+              <button className="btn btn-secondary" onClick={() => setShowComparison(false)}>
+                Close
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="comparison-grid" style={{ gridTemplateColumns: `repeat(${Math.min(savedScenarios.length, 3)}, 1fr)` }}>
+                {savedScenarios.map(scenario => (
+                  <div key={scenario.id} className="comparison-card">
+                    <div className="comparison-header">
+                      <h4 className="comparison-title">{scenario.name}</h4>
+                      <button
+                        onClick={() => removeScenario(scenario.id)}
+                        className="comparison-remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    <div className="comparison-stat">
+                      <div className="comparison-stat-label">Parameters</div>
+                      <div style={{ fontSize: '13px', color: '#94a3b8' }}>
+                        Rate: {scenario.displacementRate}% · Multiplier: {scenario.populationMultiplier.toFixed(2)}x
+                      </div>
+                    </div>
+
+                    <div className="comparison-stat">
+                      <div className="comparison-stat-label">Targets</div>
+                      <div className="comparison-stat-value" style={{ color: '#60a5fa' }}>
+                        {scenario.calculations.deduplicatedCount}
+                      </div>
+                      <div className="comparison-stat-sub">unique municipalities</div>
+                    </div>
+
+                    <div className="comparison-stat">
+                      <div className="comparison-stat-label">Affected Population</div>
+                      <div className="comparison-stat-value" style={{ color: '#60a5fa' }}>
+                        {scenario.calculations.totalPop.toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div className="comparison-stat">
+                      <div className="comparison-stat-label">Projected Displacement</div>
+                      <div className="comparison-stat-value" style={{ color: '#f87171' }}>
+                        {scenario.calculations.totalDisplaced.toLocaleString()}
+                      </div>
+                    </div>
+
+                    <button
+                      className="btn btn-secondary"
+                      style={{ width: '100%', marginTop: '8px' }}
+                      onClick={() => loadScenario(scenario)}
+                    >
+                      Load This Scenario
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {savedScenarios.length >= 2 && (
+                <div className="comparison-summary">
+                  <div className="comparison-summary-title">Comparison Summary</div>
+                  <div className="comparison-summary-grid">
+                    <div>
+                      <div className="summary-item-label">Lowest Displacement</div>
+                      <div className="summary-item-value" style={{ color: '#6ee7b7' }}>
+                        {Math.min(...savedScenarios.map(s => s.calculations.totalDisplaced)).toLocaleString()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="summary-item-label">Highest Displacement</div>
+                      <div className="summary-item-value" style={{ color: '#f87171' }}>
+                        {Math.max(...savedScenarios.map(s => s.calculations.totalDisplaced)).toLocaleString()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="summary-item-label">Difference</div>
+                      <div className="summary-item-value" style={{ color: '#fbbf24' }}>
+                        {(Math.max(...savedScenarios.map(s => s.calculations.totalDisplaced)) -
+                          Math.min(...savedScenarios.map(s => s.calculations.totalDisplaced))).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
