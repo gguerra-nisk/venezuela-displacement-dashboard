@@ -641,6 +641,13 @@ export default function VenezuelaDisplacementDashboard() {
 
         *, *::before, *::after { box-sizing: border-box; }
 
+        html, body, #root {
+          margin: 0;
+          padding: 0;
+          height: 100%;
+          overflow: hidden;
+        }
+
         /* ========== ANIMATIONS ========== */
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(8px); }
@@ -665,7 +672,7 @@ export default function VenezuelaDisplacementDashboard() {
 
         /* ========== ROOT LAYOUT ========== */
         .app-root {
-          height: 100vh;
+          height: 100%;
           display: flex;
           flex-direction: column;
           overflow: hidden;
@@ -677,7 +684,7 @@ export default function VenezuelaDisplacementDashboard() {
         @media (max-width: 1024px) {
           .app-root {
             height: auto;
-            min-height: 100vh;
+            min-height: 100%;
             overflow: visible;
           }
         }
