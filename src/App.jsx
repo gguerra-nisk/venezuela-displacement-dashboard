@@ -116,8 +116,7 @@ const SCENARIO_PRESETS = {
       "Fort Montaña (Cuartel de la Montaña)",
       "Los Altos de Irapa Radar Station"
     ],
-    description: "Targets struck in January 2026 U.S. military operation. Note: Two electrical substations in southern Caracas were also disrupted but are not included.",
-    isActualOperation: true
+    description: "Targets struck in January 2026 U.S. military operation. Note: Two electrical substations in southern Caracas were also disrupted but are not included."
   },
   airSuperiority: {
     name: "Air Superiority Campaign",
@@ -1011,46 +1010,6 @@ export default function VenezuelaDisplacementDashboard() {
           border-radius: 0 2px 2px 0;
         }
 
-        /* Special styling for Operation Absolute Resolve */
-        .btn-scenario.actual-operation {
-          border-color: rgba(245, 158, 11, 0.4);
-          background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(217, 119, 6, 0.04) 100%);
-          box-shadow: 0 0 15px rgba(245, 158, 11, 0.1), inset 0 1px 0 rgba(245, 158, 11, 0.1);
-        }
-
-        .btn-scenario.actual-operation:hover {
-          border-color: #f59e0b;
-          background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%);
-          box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
-        }
-
-        .btn-scenario.actual-operation.active {
-          background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.12) 100%);
-          border-color: #f59e0b;
-          color: #fbbf24;
-          box-shadow: 0 0 25px rgba(245, 158, 11, 0.25);
-        }
-
-        .btn-scenario.actual-operation.active::before {
-          background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
-        }
-
-        .actual-operation-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 9px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          color: #f59e0b;
-          background: rgba(245, 158, 11, 0.15);
-          padding: 3px 8px;
-          border-radius: 4px;
-          margin-left: 8px;
-          border: 1px solid rgba(245, 158, 11, 0.3);
-        }
-
         .scenario-name {
           font-weight: 500;
           margin-bottom: 3px;
@@ -1928,7 +1887,7 @@ export default function VenezuelaDisplacementDashboard() {
               >
                 {Object.entries(SCENARIO_PRESETS).map(([key, scenario]) => (
                   <option key={key} value={key}>
-                    {scenario.isActualOperation ? '★ ' : ''}{scenario.name}
+                    {scenario.name}
                   </option>
                 ))}
               </select>
@@ -1944,14 +1903,11 @@ export default function VenezuelaDisplacementDashboard() {
               {Object.entries(SCENARIO_PRESETS).map(([key, scenario]) => (
                 <button
                   key={key}
-                  className={`btn btn-scenario ${selectedScenario === key ? 'active' : ''} ${scenario.isActualOperation ? 'actual-operation' : ''}`}
+                  className={`btn btn-scenario ${selectedScenario === key ? 'active' : ''}`}
                   onClick={() => handleScenarioChange(key)}
                 >
                   <div className="scenario-name">
                     {scenario.name}
-                    {scenario.isActualOperation && (
-                      <span className="actual-operation-badge">★ Actual</span>
-                    )}
                   </div>
                   <div className="scenario-desc">{scenario.description}</div>
                 </button>
