@@ -102,6 +102,23 @@ const TARGETS_DATA = [
 
 const SCENARIO_PRESETS = {
   custom: { name: "Custom Selection", targets: [], description: "Select individual targets" },
+  operationAbsoluteResolve: {
+    name: "Operation Absolute Resolve",
+    targets: [
+      "Fort Tiuna",
+      "La Carlota AFB (Francisco de Miranda)",
+      "La Guaira Port",
+      "Catia La Mar Air Defense Site",
+      "Higuerote Airport",
+      "Cerro El Volcán",
+      "Fort Guaicaipuro",
+      "El Libertador Air Base (BAEL)",
+      "Fort Montaña (Cuartel de la Montaña)",
+      "Los Altos de Irapa Radar Station"
+    ],
+    description: "Targets struck in January 2026 U.S. military operation. Note: Two electrical substations in southern Caracas were also disrupted but are not included.",
+    isActualOperation: true
+  },
   airSuperiority: {
     name: "Air Superiority Campaign",
     targets: TARGETS_DATA.filter(t => t.type === "Air Base" || t.type === "Naval Air Base").map(t => t.name),
@@ -118,17 +135,17 @@ const SCENARIO_PRESETS = {
     ],
     description: "Target integrated air defense network (Buk-M2E, S-300VM, S-125 systems) and radar installations to establish air superiority."
   },
-  counterNarcotics: { 
-    name: "Counter-Narcotics Operation", 
+  counterNarcotics: {
+    name: "Counter-Narcotics Operation",
     targets: TARGETS_DATA.filter(t => t.type === "Drug Trafficking Region").map(t => t.name),
     description: "All 9 drug trafficking regions — disrupt cartel/state narco infrastructure"
   },
-  navalDenial: { 
-    name: "Naval Blockade/Denial", 
-    targets: TARGETS_DATA.filter(t => 
-      t.type === "Naval Port" || 
-      t.type === "Naval Air Base" || 
-      t.type === "Naval Facility" || 
+  navalDenial: {
+    name: "Naval Blockade/Denial",
+    targets: TARGETS_DATA.filter(t =>
+      t.type === "Naval Port" ||
+      t.type === "Naval Air Base" ||
+      t.type === "Naval Facility" ||
       t.type === "Naval Station" ||
       t.type === "Marine Corps HQ"
     ).map(t => t.name),
@@ -148,22 +165,6 @@ const SCENARIO_PRESETS = {
       "Petare / Sucre Municipality"
     ],
     description: "9 Capital region command & control targets — Fort Tiuna, HQs, key nodes"
-  },
-  operationAbsoluteResolve: {
-    name: "Operation Absolute Resolve",
-    targets: [
-      "Fort Tiuna",
-      "La Carlota AFB (Francisco de Miranda)",
-      "La Guaira Port",
-      "Catia La Mar Air Defense Site",
-      "Higuerote Airport",
-      "Cerro El Volcán",
-      "Fort Guaicaipuro",
-      "El Libertador Air Base (BAEL)",
-      "Fort Montaña (Cuartel de la Montaña)",
-      "Los Altos de Irapa Radar Station"
-    ],
-    description: "Targets struck in January 2026 U.S. military operation. Note: Two electrical substations in southern Caracas were also disrupted but are not included."
   },
   groundForces: {
     name: "Ground Forces Degradation",
@@ -635,13 +636,7 @@ export default function VenezuelaDisplacementDashboard() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#080b10',
-      color: '#e8eaed',
-      fontFamily: "'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif",
-      boxSizing: 'border-box'
-    }}>
+    <div className="app-root">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
@@ -669,47 +664,117 @@ export default function VenezuelaDisplacementDashboard() {
           100% { transform: scale(1); }
         }
 
-        /* ========== BASE LAYOUT ========== */
-        .app-container {
-          padding: 24px;
-          max-width: 1600px;
-          margin: 0 auto;
+        /* ========== ROOT LAYOUT ========== */
+        .app-root {
+          height: 100vh;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          background-color: #080b10;
+          color: #e8eaed;
+          font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
-        .main-grid {
+        @media (max-width: 1024px) {
+          .app-root {
+            height: auto;
+            min-height: 100vh;
+            overflow: visible;
+          }
+        }
+
+        /* ========== MAIN CONTENT AREA ========== */
+        .app-main {
+          flex: 1;
           display: grid;
-          grid-template-columns: 340px 1fr 380px;
-          gap: 28px;
+          grid-template-columns: 320px 1fr 360px;
+          gap: 24px;
+          padding: 24px 48px;
+          overflow: hidden;
+          min-height: 0;
         }
 
         @media (max-width: 1280px) {
-          .main-grid {
-            grid-template-columns: 300px 1fr 340px;
+          .app-main {
+            grid-template-columns: 280px 1fr 320px;
             gap: 20px;
+            padding: 20px 32px;
           }
         }
 
         @media (max-width: 1024px) {
-          .app-container {
-            padding: 16px;
-          }
-          .main-grid {
-            grid-template-columns: 1fr;
+          .app-main {
+            display: flex;
+            flex-direction: column;
             gap: 20px;
+            padding: 16px;
+            overflow: visible;
           }
-          .main-grid > *:nth-child(1) { order: 2; }
-          .main-grid > *:nth-child(2) { order: 3; }
-          .main-grid > *:nth-child(3) { order: 1; }
+        }
+
+        /* ========== SCROLLABLE COLUMNS ========== */
+        .column-left,
+        .column-right {
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+
+        .column-center {
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          overflow: hidden;
+        }
+
+        @media (max-width: 1024px) {
+          .column-left,
+          .column-center,
+          .column-right {
+            overflow: visible;
+          }
+          .column-left { order: 2; }
+          .column-center { order: 3; }
+          .column-right { order: 1; }
+        }
+
+        /* Custom scrollbars for columns */
+        .column-left::-webkit-scrollbar,
+        .column-right::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .column-left::-webkit-scrollbar-track,
+        .column-right::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .column-left::-webkit-scrollbar-thumb,
+        .column-right::-webkit-scrollbar-thumb {
+          background: #334155;
+          border-radius: 3px;
+        }
+
+        .column-left::-webkit-scrollbar-thumb:hover,
+        .column-right::-webkit-scrollbar-thumb:hover {
+          background: #475569;
         }
 
         /* ========== HEADER ========== */
         .app-header {
           background: linear-gradient(135deg, #0f1419 0%, #080b10 50%, #0a1628 100%);
           border-bottom: 1px solid rgba(59, 130, 246, 0.2);
-          padding: 32px 24px;
-          margin: -24px -24px 28px -24px;
+          padding: 20px 48px;
           position: relative;
-          overflow: hidden;
+          flex-shrink: 0;
+        }
+
+        @media (max-width: 1024px) {
+          .app-header {
+            padding: 16px;
+          }
         }
 
         .app-header::before {
@@ -727,36 +792,45 @@ export default function VenezuelaDisplacementDashboard() {
         .app-header-content {
           position: relative;
           z-index: 1;
-          max-width: 1600px;
+          max-width: 1504px;
           margin: 0 auto;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+
+        .header-left {
+          flex: 1;
+          min-width: 300px;
+        }
+
+        .header-right {
+          display: flex;
+          align-items: center;
+          gap: 12px;
         }
 
         .app-title {
-          font-size: 28px;
+          font-size: 22px;
           font-weight: 600;
           margin: 0;
           color: #f8fafc;
-          letter-spacing: -0.5px;
+          letter-spacing: -0.3px;
           line-height: 1.2;
         }
 
         .app-subtitle {
           color: #8b949e;
-          margin-top: 10px;
-          font-size: 15px;
-          line-height: 1.5;
-          max-width: 680px;
-        }
-
-        .header-brand {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-top: 16px;
+          margin-top: 6px;
+          font-size: 13px;
+          line-height: 1.4;
+          max-width: 600px;
         }
 
         .brand-tag {
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 1.5px;
@@ -769,8 +843,7 @@ export default function VenezuelaDisplacementDashboard() {
 
         @media (max-width: 1024px) {
           .app-header {
-            margin: -16px -16px 20px -16px;
-            padding: 24px 16px;
+            padding: 20px 16px;
           }
           .app-title {
             font-size: 22px;
@@ -794,11 +867,15 @@ export default function VenezuelaDisplacementDashboard() {
           background: linear-gradient(145deg, #12171f 0%, #0c1017 100%);
           border: 1px solid #1e2a3a;
           border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 20px;
+          padding: 20px;
+          margin-bottom: 16px;
           box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
           animation: fadeIn 0.3s ease-out;
           transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:last-child {
+          margin-bottom: 0;
         }
 
         .card:hover {
@@ -806,13 +883,13 @@ export default function VenezuelaDisplacementDashboard() {
         }
 
         .card-header {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 600;
           text-transform: uppercase;
-          letter-spacing: 1.5px;
+          letter-spacing: 1.2px;
           color: #8b949e;
-          margin-bottom: 20px;
-          padding-bottom: 14px;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
           border-bottom: 1px solid #1e2a3a;
           display: flex;
           align-items: center;
@@ -898,11 +975,15 @@ export default function VenezuelaDisplacementDashboard() {
           color: #94a3b8;
           border: 1px solid #1e2a3a;
           text-align: left;
-          padding: 14px 18px;
+          padding: 12px 14px;
           width: 100%;
-          margin-bottom: 10px;
-          border-radius: 10px;
+          margin-bottom: 8px;
+          border-radius: 8px;
           position: relative;
+        }
+
+        .btn-scenario:last-child {
+          margin-bottom: 0;
         }
 
         .btn-scenario:hover {
@@ -930,16 +1011,56 @@ export default function VenezuelaDisplacementDashboard() {
           border-radius: 0 2px 2px 0;
         }
 
+        /* Special styling for Operation Absolute Resolve */
+        .btn-scenario.actual-operation {
+          border-color: rgba(245, 158, 11, 0.4);
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(217, 119, 6, 0.04) 100%);
+          box-shadow: 0 0 15px rgba(245, 158, 11, 0.1), inset 0 1px 0 rgba(245, 158, 11, 0.1);
+        }
+
+        .btn-scenario.actual-operation:hover {
+          border-color: #f59e0b;
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%);
+          box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+        }
+
+        .btn-scenario.actual-operation.active {
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.12) 100%);
+          border-color: #f59e0b;
+          color: #fbbf24;
+          box-shadow: 0 0 25px rgba(245, 158, 11, 0.25);
+        }
+
+        .btn-scenario.actual-operation.active::before {
+          background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .actual-operation-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: #f59e0b;
+          background: rgba(245, 158, 11, 0.15);
+          padding: 3px 8px;
+          border-radius: 4px;
+          margin-left: 8px;
+          border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
         .scenario-name {
           font-weight: 500;
-          margin-bottom: 4px;
-          font-size: 14px;
+          margin-bottom: 3px;
+          font-size: 13px;
         }
 
         .scenario-desc {
-          font-size: 12px;
+          font-size: 11px;
           opacity: 0.7;
-          line-height: 1.4;
+          line-height: 1.35;
         }
 
         /* ========== SCENARIO DROPDOWN (Mobile) ========== */
@@ -962,14 +1083,18 @@ export default function VenezuelaDisplacementDashboard() {
 
         /* ========== SLIDERS ========== */
         .slider-container {
-          margin: 20px 0;
+          margin: 16px 0;
+        }
+
+        .slider-container:first-of-type {
+          margin-top: 0;
         }
 
         .slider-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 12px;
+          margin-bottom: 10px;
         }
 
         .slider-label {
@@ -1083,10 +1208,11 @@ export default function VenezuelaDisplacementDashboard() {
 
         /* ========== TARGET LIST ========== */
         .target-list {
-          max-height: 500px;
+          flex: 1;
           overflow-y: auto;
           padding-right: 8px;
           margin-right: -8px;
+          min-height: 0;
         }
 
         .target-list::-webkit-scrollbar {
@@ -1109,7 +1235,8 @@ export default function VenezuelaDisplacementDashboard() {
 
         @media (max-width: 1024px) {
           .target-list {
-            max-height: 400px;
+            flex: none;
+            max-height: 500px;
           }
         }
 
@@ -1256,33 +1383,33 @@ export default function VenezuelaDisplacementDashboard() {
         .stat-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
-          gap: 14px;
+          gap: 10px;
         }
 
         @media (max-width: 480px) {
           .stat-grid {
             grid-template-columns: 1fr;
-            gap: 12px;
+            gap: 10px;
           }
         }
 
         .stat-box {
           background: linear-gradient(145deg, #0f172a 0%, #0c1220 100%);
           border: 1px solid #1e293b;
-          border-radius: 10px;
-          padding: 18px 14px;
+          border-radius: 8px;
+          padding: 14px 10px;
           text-align: center;
           transition: all 0.2s ease;
         }
 
         .stat-box:hover {
           border-color: #334155;
-          transform: translateY(-2px);
+          transform: translateY(-1px);
         }
 
         .stat-value {
           font-family: 'IBM Plex Mono', monospace;
-          font-size: 24px;
+          font-size: 20px;
           font-weight: 600;
           color: #60a5fa;
           margin-bottom: 6px;
@@ -1476,13 +1603,13 @@ export default function VenezuelaDisplacementDashboard() {
 
         /* ========== ATTRIBUTION ========== */
         .attribution {
-          font-size: 12px;
+          font-size: 11px;
           color: #64748b;
           text-align: center;
-          padding-top: 20px;
+          padding-top: 14px;
           border-top: 1px solid #1e293b;
-          margin-top: 20px;
-          line-height: 1.7;
+          margin-top: 16px;
+          line-height: 1.6;
         }
 
         .attribution strong {
@@ -1765,28 +1892,30 @@ export default function VenezuelaDisplacementDashboard() {
       {/* Header */}
       <header className="app-header">
         <div className="app-header-content">
-          <h1 className="app-title">Venezuela Strike Displacement Scenario Builder</h1>
-          <p className="app-subtitle">
-            Model projected short-term civilian displacement from hypothetical U.S. strikes on Venezuelan military and strategic targets
-          </p>
-          <div className="header-brand">
+          <div className="header-left">
+            <h1 className="app-title">Venezuela Strike Displacement Scenario Builder</h1>
+            <p className="app-subtitle">
+              Model projected short-term civilian displacement from hypothetical U.S. strikes on Venezuelan military and strategic targets
+            </p>
+          </div>
+          <div className="header-right">
             <span className="brand-tag">Niskanen Center</span>
             <button
               className="btn btn-secondary"
-              style={{ padding: '8px 14px', fontSize: '13px' }}
+              style={{ padding: '8px 12px', fontSize: '12px' }}
               onClick={() => setShowMethodology(true)}
             >
-              Methodology & Limitations
+              Methodology
             </button>
           </div>
         </div>
       </header>
 
-      <div className="app-container">
-        <div className="main-grid">
+      {/* Main Content */}
+      <main className="app-main">
         
         {/* Left Column - Scenario Selection */}
-        <div>
+        <div className="column-left">
           <div className="card">
             <div className="card-header">Scenario Presets</div>
 
@@ -1798,7 +1927,9 @@ export default function VenezuelaDisplacementDashboard() {
                 onChange={(e) => handleScenarioChange(e.target.value)}
               >
                 {Object.entries(SCENARIO_PRESETS).map(([key, scenario]) => (
-                  <option key={key} value={key}>{scenario.name}</option>
+                  <option key={key} value={key}>
+                    {scenario.isActualOperation ? '★ ' : ''}{scenario.name}
+                  </option>
                 ))}
               </select>
               {selectedScenario !== 'custom' && (
@@ -1813,10 +1944,15 @@ export default function VenezuelaDisplacementDashboard() {
               {Object.entries(SCENARIO_PRESETS).map(([key, scenario]) => (
                 <button
                   key={key}
-                  className={`btn btn-scenario ${selectedScenario === key ? 'active' : ''}`}
+                  className={`btn btn-scenario ${selectedScenario === key ? 'active' : ''} ${scenario.isActualOperation ? 'actual-operation' : ''}`}
                   onClick={() => handleScenarioChange(key)}
                 >
-                  <div className="scenario-name">{scenario.name}</div>
+                  <div className="scenario-name">
+                    {scenario.name}
+                    {scenario.isActualOperation && (
+                      <span className="actual-operation-badge">★ Actual</span>
+                    )}
+                  </div>
                   <div className="scenario-desc">{scenario.description}</div>
                 </button>
               ))}
@@ -1874,63 +2010,67 @@ export default function VenezuelaDisplacementDashboard() {
         </div>
 
         {/* Center Column - Target Selection */}
-        <div>
-          <div className="card" style={{ height: '100%' }}>
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Target Selection</span>
-              <div>
-                <button className="btn btn-secondary" onClick={selectAllFiltered} style={{ marginRight: '8px' }}>
-                  Select Filtered
-                </button>
-                <button className="btn btn-secondary" onClick={clearSelection}>
-                  Clear All
-                </button>
+        <div className="column-center">
+          <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            {/* Fixed header section */}
+            <div style={{ flexShrink: 0 }}>
+              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Target Selection</span>
+                <div>
+                  <button className="btn btn-secondary" onClick={selectAllFiltered} style={{ marginRight: '8px' }}>
+                    Select Filtered
+                  </button>
+                  <button className="btn btn-secondary" onClick={clearSelection}>
+                    Clear All
+                  </button>
+                </div>
+              </div>
+
+              <div className="filter-grid">
+                <select
+                  className="select-input"
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                >
+                  {ALL_TYPES.map(t => (
+                    <option key={t} value={t}>{t === 'all' ? 'All Types' : t}</option>
+                  ))}
+                </select>
+                <select
+                  className="select-input"
+                  value={filterRegion}
+                  onChange={(e) => setFilterRegion(e.target.value)}
+                >
+                  {ALL_REGIONS.map(r => (
+                    <option key={r} value={r}>{r === 'all' ? 'All Regions' : r}</option>
+                  ))}
+                </select>
+                <select
+                  className="select-input"
+                  value={filterState}
+                  onChange={(e) => setFilterState(e.target.value)}
+                >
+                  {ALL_STATES.map(s => (
+                    <option key={s} value={s}>{s === 'all' ? 'All States' : s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                className="btn btn-secondary"
+                style={{ width: '100%', marginBottom: '12px' }}
+                onClick={() => setShowCustomTargetModal(true)}
+              >
+                + Create Custom Target
+              </button>
+
+              <div className="target-count">
+                <span>Showing <span className="target-count-highlight">{filteredTargets.length}</span> targets</span>
+                <span><span className="target-count-highlight">{selectedTargets.length}</span> selected</span>
               </div>
             </div>
 
-            <div className="filter-grid">
-              <select
-                className="select-input"
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-              >
-                {ALL_TYPES.map(t => (
-                  <option key={t} value={t}>{t === 'all' ? 'All Types' : t}</option>
-                ))}
-              </select>
-              <select
-                className="select-input"
-                value={filterRegion}
-                onChange={(e) => setFilterRegion(e.target.value)}
-              >
-                {ALL_REGIONS.map(r => (
-                  <option key={r} value={r}>{r === 'all' ? 'All Regions' : r}</option>
-                ))}
-              </select>
-              <select
-                className="select-input"
-                value={filterState}
-                onChange={(e) => setFilterState(e.target.value)}
-              >
-                {ALL_STATES.map(s => (
-                  <option key={s} value={s}>{s === 'all' ? 'All States' : s}</option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              className="btn btn-secondary"
-              style={{ width: '100%', marginBottom: '16px' }}
-              onClick={() => setShowCustomTargetModal(true)}
-            >
-              + Create Custom Target
-            </button>
-
-            <div className="target-count">
-              <span>Showing <span className="target-count-highlight">{filteredTargets.length}</span> targets</span>
-              <span><span className="target-count-highlight">{selectedTargets.length}</span> selected</span>
-            </div>
-
+            {/* Scrollable target list */}
             <div className="target-list">
               {filteredTargets.map(target => {
                 const isSelected = selectedTargets.includes(target.name);
@@ -1999,7 +2139,7 @@ export default function VenezuelaDisplacementDashboard() {
         </div>
 
         {/* Right Column - Results */}
-        <div>
+        <div className="column-right">
           <div className="card">
             <div className="card-header">Scenario Summary</div>
 
@@ -2129,7 +2269,7 @@ export default function VenezuelaDisplacementDashboard() {
           </div>
         </div>
         </div>
-      </div>
+      </main>
 
       {/* Export Modal */}
       {showExport && (
