@@ -1031,6 +1031,9 @@ export default function VenezuelaDisplacementDashboard() {
 
         .scenario-buttons-container {
           display: block;
+          overflow-y: auto;
+          flex: 1;
+          min-height: 0;
         }
 
         @media (max-width: 1024px) {
@@ -1056,12 +1059,15 @@ export default function VenezuelaDisplacementDashboard() {
           justify-content: space-between;
           align-items: center;
           margin-bottom: 10px;
+          gap: 8px;
+          flex-wrap: nowrap;
         }
 
         .slider-label {
           font-size: 14px;
           color: #94a3b8;
           font-weight: 500;
+          flex-shrink: 0;
         }
 
         .slider-value {
@@ -1076,17 +1082,20 @@ export default function VenezuelaDisplacementDashboard() {
 
         .slider-value-input {
           font-family: 'IBM Plex Mono', monospace;
-          font-size: 16px;
+          font-size: 14px;
           color: #60a5fa;
           font-weight: 600;
           background: rgba(59, 130, 246, 0.1);
-          padding: 4px 8px;
+          padding: 4px 6px;
           border-radius: 6px;
           border: 1px solid transparent;
-          width: 80px;
+          width: 70px;
+          min-width: 70px;
+          max-width: 70px;
           text-align: right;
           outline: none;
           transition: border-color 0.2s ease, background 0.2s ease;
+          box-sizing: border-box;
         }
 
         .slider-value-input:hover {
@@ -2009,7 +2018,9 @@ export default function VenezuelaDisplacementDashboard() {
                 onChange={(e) => {
                   const sliderVal = parseFloat(e.target.value);
                   const actualVal = Math.pow(10, -3 + (sliderVal / 100) * 4);
-                  setDisplacementRate(parseFloat(actualVal.toPrecision(3)));
+                  // Round to appropriate decimal places based on magnitude
+                  const decimals = actualVal < 0.01 ? 4 : actualVal < 0.1 ? 3 : actualVal < 1 ? 2 : 1;
+                  setDisplacementRate(parseFloat(actualVal.toFixed(decimals)));
                 }}
               />
               <div className="slider-hints">
