@@ -720,15 +720,8 @@ export default function VenezuelaDisplacementDashboard() {
 
         /* ========== SCROLLABLE COLUMNS ========== */
         .column-left,
+        .column-center,
         .column-right {
-          display: flex;
-          flex-direction: column;
-          min-height: 0;
-          overflow-y: auto;
-          overflow-x: hidden;
-        }
-
-        .column-center {
           display: flex;
           flex-direction: column;
           min-height: 0;
@@ -746,25 +739,25 @@ export default function VenezuelaDisplacementDashboard() {
           .column-right { order: 1; }
         }
 
-        /* Custom scrollbars for columns */
-        .column-left::-webkit-scrollbar,
-        .column-right::-webkit-scrollbar {
+        /* Custom scrollbars for internal scrollable areas */
+        .scenario-buttons-container::-webkit-scrollbar,
+        .target-list::-webkit-scrollbar {
           width: 6px;
         }
 
-        .column-left::-webkit-scrollbar-track,
-        .column-right::-webkit-scrollbar-track {
+        .scenario-buttons-container::-webkit-scrollbar-track,
+        .target-list::-webkit-scrollbar-track {
           background: transparent;
         }
 
-        .column-left::-webkit-scrollbar-thumb,
-        .column-right::-webkit-scrollbar-thumb {
+        .scenario-buttons-container::-webkit-scrollbar-thumb,
+        .target-list::-webkit-scrollbar-thumb {
           background: #334155;
           border-radius: 3px;
         }
 
-        .column-left::-webkit-scrollbar-thumb:hover,
-        .column-right::-webkit-scrollbar-thumb:hover {
+        .scenario-buttons-container::-webkit-scrollbar-thumb:hover,
+        .target-list::-webkit-scrollbar-thumb:hover {
           background: #475569;
         }
 
@@ -1882,48 +1875,53 @@ export default function VenezuelaDisplacementDashboard() {
         
         {/* Left Column - Scenario Selection */}
         <div className="column-left">
-          <div className="card">
-            <div className="card-header">Scenario Presets</div>
+          {/* Scrollable presets section */}
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', marginBottom: '16px' }}>
+              <div className="card-header">Scenario Presets</div>
 
-            {/* Mobile Dropdown */}
-            <div className="scenario-dropdown-container">
-              <select
-                className="select-input"
-                value={selectedScenario}
-                onChange={(e) => handleScenarioChange(e.target.value)}
-              >
-                {Object.entries(SCENARIO_PRESETS).map(([key, scenario]) => (
-                  <option key={key} value={key}>
-                    {scenario.name}
-                  </option>
-                ))}
-              </select>
-              {selectedScenario !== 'custom' && (
-                <p style={{ fontSize: '12px', color: '#64748b', marginTop: '10px', lineHeight: '1.5' }}>
-                  {SCENARIO_PRESETS[selectedScenario].description}
-                </p>
-              )}
-            </div>
-
-            {/* Desktop Buttons */}
-            <div className="scenario-buttons-container">
-              {Object.entries(SCENARIO_PRESETS).map(([key, scenario]) => (
-                <button
-                  key={key}
-                  className={`btn btn-scenario ${selectedScenario === key ? 'active' : ''}`}
-                  onClick={() => handleScenarioChange(key)}
+              {/* Mobile Dropdown */}
+              <div className="scenario-dropdown-container">
+                <select
+                  className="select-input"
+                  value={selectedScenario}
+                  onChange={(e) => handleScenarioChange(e.target.value)}
                 >
-                  <div className="scenario-name">
-                    {scenario.name}
-                  </div>
-                  <div className="scenario-desc">{scenario.description}</div>
-                </button>
-              ))}
+                  {Object.entries(SCENARIO_PRESETS).map(([key, scenario]) => (
+                    <option key={key} value={key}>
+                      {scenario.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedScenario !== 'custom' && (
+                  <p style={{ fontSize: '12px', color: '#64748b', marginTop: '10px', lineHeight: '1.5' }}>
+                    {SCENARIO_PRESETS[selectedScenario].description}
+                  </p>
+                )}
+              </div>
+
+              {/* Desktop Buttons - Scrollable */}
+              <div className="scenario-buttons-container" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                {Object.entries(SCENARIO_PRESETS).map(([key, scenario]) => (
+                  <button
+                    key={key}
+                    className={`btn btn-scenario ${selectedScenario === key ? 'active' : ''}`}
+                    onClick={() => handleScenarioChange(key)}
+                  >
+                    <div className="scenario-name">
+                      {scenario.name}
+                    </div>
+                    <div className="scenario-desc">{scenario.description}</div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-header">Parameters</div>
+          {/* Fixed parameters section */}
+          <div style={{ flexShrink: 0 }}>
+            <div className="card" style={{ marginBottom: 0 }}>
+              <div className="card-header">Parameters</div>
 
             <div className="slider-container">
               <div className="slider-header">
@@ -1968,6 +1966,7 @@ export default function VenezuelaDisplacementDashboard() {
             <div className="info-box">
               <strong>Displacement Rate:</strong> Default (0.001%) reflects minimal impact. Increase for larger strike intensity or broader evacuation scenarios.<br/><br/>
               <strong>Population Multiplier:</strong> Adjusts 2011 census data for population changes. Use &lt;1.0 to account for Venezuela's significant emigration since 2011, or &gt;1.0 if modeling areas with population growth.
+            </div>
             </div>
           </div>
         </div>
@@ -2103,82 +2102,90 @@ export default function VenezuelaDisplacementDashboard() {
 
         {/* Right Column - Results */}
         <div className="column-right">
-          <div className="card">
-            <div className="card-header">Scenario Summary</div>
+          {/* Fixed summary at top */}
+          <div style={{ flexShrink: 0 }}>
+            <div className="card" style={{ marginBottom: '16px' }}>
+              <div className="card-header">Scenario Summary</div>
 
-            <div className="stat-grid">
-              <div className="stat-box">
-                <div className="stat-value">{calculations.deduplicatedCount}</div>
-                <div className="stat-label">Municipalities</div>
-              </div>
-              <div className="stat-box">
-                <div className="stat-value stat-value-large">
-                  {calculations.totalPop.toLocaleString()}
+              <div className="stat-grid">
+                <div className="stat-box">
+                  <div className="stat-value">{calculations.deduplicatedCount}</div>
+                  <div className="stat-label">Municipalities</div>
                 </div>
-                <div className="stat-label">Affected Pop.</div>
-              </div>
-              <div className="stat-box">
-                <div className="stat-value stat-value-large stat-value-red">
-                  {calculations.totalDisplaced.toLocaleString()}
+                <div className="stat-box">
+                  <div className="stat-value stat-value-large">
+                    {calculations.totalPop.toLocaleString()}
+                  </div>
+                  <div className="stat-label">Affected Pop.</div>
                 </div>
-                <div className="stat-label">Displaced</div>
+                <div className="stat-box">
+                  <div className="stat-value stat-value-large stat-value-red">
+                    {calculations.totalDisplaced.toLocaleString()}
+                  </div>
+                  <div className="stat-label">Displaced</div>
+                </div>
               </div>
+
+              {calculations.rawCount !== calculations.deduplicatedCount && (
+                <div className="dedup-note">
+                  Note: {calculations.rawCount} targets selected across {calculations.deduplicatedCount} unique municipalities. Overlapping populations deduplicated.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Scrollable breakdowns in middle */}
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            <div className="card" style={{ marginBottom: '16px' }}>
+              <div className="card-header">Breakdown by Type</div>
+              {Object.entries(calculations.byType).length === 0 ? (
+                <div style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', padding: '24px' }}>
+                  No targets selected
+                </div>
+              ) : (
+                Object.entries(calculations.byType)
+                  .sort((a, b) => b[1].displaced - a[1].displaced)
+                  .map(([type, data]) => (
+                    <div key={type} className="breakdown-row">
+                      <span>
+                        <span className="breakdown-label">{type}</span>
+                        <span className="breakdown-count"> ({data.count})</span>
+                      </span>
+                      <span className="breakdown-value">
+                        {data.displaced.toLocaleString()}
+                      </span>
+                    </div>
+                  ))
+              )}
             </div>
 
-            {calculations.rawCount !== calculations.deduplicatedCount && (
-              <div className="dedup-note">
-                Note: {calculations.rawCount} targets selected across {calculations.deduplicatedCount} unique municipalities. Overlapping populations deduplicated.
-              </div>
-            )}
+            <div className="card" style={{ marginBottom: 0 }}>
+              <div className="card-header">Breakdown by Region</div>
+              {Object.entries(calculations.byRegion).length === 0 ? (
+                <div style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', padding: '24px' }}>
+                  No targets selected
+                </div>
+              ) : (
+                Object.entries(calculations.byRegion)
+                  .sort((a, b) => b[1].displaced - a[1].displaced)
+                  .map(([region, data]) => (
+                    <div key={region} className="breakdown-row">
+                      <span>
+                        <span className="breakdown-label">{region}</span>
+                        <span className="breakdown-count"> ({data.count})</span>
+                      </span>
+                      <span className="breakdown-value">
+                        {data.displaced.toLocaleString()}
+                      </span>
+                    </div>
+                  ))
+              )}
+            </div>
           </div>
 
-          <div className="card">
-            <div className="card-header">Breakdown by Type</div>
-            {Object.entries(calculations.byType).length === 0 ? (
-              <div style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', padding: '24px' }}>
-                No targets selected
-              </div>
-            ) : (
-              Object.entries(calculations.byType)
-                .sort((a, b) => b[1].displaced - a[1].displaced)
-                .map(([type, data]) => (
-                  <div key={type} className="breakdown-row">
-                    <span>
-                      <span className="breakdown-label">{type}</span>
-                      <span className="breakdown-count"> ({data.count})</span>
-                    </span>
-                    <span className="breakdown-value">
-                      {data.displaced.toLocaleString()}
-                    </span>
-                  </div>
-                ))
-            )}
-          </div>
-
-          <div className="card">
-            <div className="card-header">Breakdown by Region</div>
-            {Object.entries(calculations.byRegion).length === 0 ? (
-              <div style={{ color: '#64748b', fontSize: '14px', textAlign: 'center', padding: '24px' }}>
-                No targets selected
-              </div>
-            ) : (
-              Object.entries(calculations.byRegion)
-                .sort((a, b) => b[1].displaced - a[1].displaced)
-                .map(([region, data]) => (
-                  <div key={region} className="breakdown-row">
-                    <span>
-                      <span className="breakdown-label">{region}</span>
-                      <span className="breakdown-count"> ({data.count})</span>
-                    </span>
-                    <span className="breakdown-value">
-                      {data.displaced.toLocaleString()}
-                    </span>
-                  </div>
-                ))
-            )}
-          </div>
-
-          <div className="action-buttons">
+          {/* Fixed action buttons at bottom */}
+          <div style={{ flexShrink: 0, marginTop: '16px' }}>
+            <div className="action-buttons">
             <button
               className="btn btn-secondary"
               style={{ width: '100%' }}
@@ -2224,11 +2231,12 @@ export default function VenezuelaDisplacementDashboard() {
                 Compare Scenarios ({savedScenarios.length})
               </button>
             )}
-          </div>
+            </div>
 
-          <div className="attribution">
-            <strong>Gil Guerra and Claire Holba</strong>, Niskanen Center<br/>
-            Corrections & questions: <a href="mailto:gguerra@niskanencenter.org" className="link">gguerra@niskanencenter.org</a>
+            <div className="attribution">
+              <strong>Gil Guerra and Claire Holba</strong>, Niskanen Center<br/>
+              Corrections & questions: <a href="mailto:gguerra@niskanencenter.org" className="link">gguerra@niskanencenter.org</a>
+            </div>
           </div>
         </div>
       </main>
