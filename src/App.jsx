@@ -2268,7 +2268,6 @@ export default function VenezuelaDisplacementDashboard() {
             Corrections & questions: <a href="mailto:gguerra@niskanencenter.org" className="link">gguerra@niskanencenter.org</a>
           </div>
         </div>
-        </div>
       </main>
 
       {/* Export Modal */}

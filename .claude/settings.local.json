@@ -6,7 +6,8 @@
       "Bash(npx eslint:*)",
       "Bash(node -c:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix layout for iframe embed and improve target list height\n\nLayout changes:\n- Set root to height: 100vh with flex column layout\n- Header is fixed \\(flex-shrink: 0\\), main content fills remaining space\n- Three-column grid with internal scrolling per column\n- Padding: 20px 48px on header, 24px 48px on main content\n\nTarget list fix:\n- Remove fixed max-height \\(was 500px\\)\n- Use flex: 1 to fill available vertical space in column\n- Wrap header elements in flex-shrink: 0 container\n- Target list scrolls internally when content overflows\n\nScenario presets:\n- Move Operation Absolute Resolve to first position\n- Add gold/amber styling with \"★ Actual\" badge\n- Compact button padding and font sizes\n\nResponsive: Mobile \\(≤1024px\\) falls back to normal page scrolling\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix layout for iframe embed and improve target list height\n\nLayout changes:\n- Set root to height: 100vh with flex column layout\n- Header is fixed \\(flex-shrink: 0\\), main content fills remaining space\n- Three-column grid with internal scrolling per column\n- Padding: 20px 48px on header, 24px 48px on main content\n\nTarget list fix:\n- Remove fixed max-height \\(was 500px\\)\n- Use flex: 1 to fill available vertical space in column\n- Wrap header elements in flex-shrink: 0 container\n- Target list scrolls internally when content overflows\n\nScenario presets:\n- Move Operation Absolute Resolve to first position\n- Add gold/amber styling with \"★ Actual\" badge\n- Compact button padding and font sizes\n\nResponsive: Mobile \\(≤1024px\\) falls back to normal page scrolling\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)"
     ]
   }
 }
