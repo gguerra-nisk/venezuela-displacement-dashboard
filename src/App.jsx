@@ -693,7 +693,7 @@ export default function VenezuelaDisplacementDashboard() {
         .app-main {
           flex: 1;
           display: grid;
-          grid-template-columns: 320px 1fr 360px;
+          grid-template-columns: 300px 1fr 360px;
           gap: 24px;
           padding: 24px 48px;
           overflow: hidden;
@@ -1020,6 +1020,8 @@ export default function VenezuelaDisplacementDashboard() {
           font-size: 11px;
           opacity: 0.7;
           line-height: 1.35;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
         }
 
         /* ========== SCENARIO DROPDOWN (Mobile) ========== */
@@ -1070,6 +1072,48 @@ export default function VenezuelaDisplacementDashboard() {
           background: rgba(59, 130, 246, 0.1);
           padding: 4px 10px;
           border-radius: 6px;
+        }
+
+        .slider-value-input {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 16px;
+          color: #60a5fa;
+          font-weight: 600;
+          background: rgba(59, 130, 246, 0.1);
+          padding: 4px 8px;
+          border-radius: 6px;
+          border: 1px solid transparent;
+          width: 80px;
+          text-align: right;
+          outline: none;
+          transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .slider-value-input:hover {
+          background: rgba(59, 130, 246, 0.15);
+        }
+
+        .slider-value-input:focus {
+          border-color: #3b82f6;
+          background: rgba(59, 130, 246, 0.2);
+        }
+
+        .slider-value-input::-webkit-inner-spin-button,
+        .slider-value-input::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+
+        .slider-value-input[type=number] {
+          -moz-appearance: textfield;
+        }
+
+        .slider-value-suffix {
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 16px;
+          color: #60a5fa;
+          font-weight: 600;
+          margin-left: 2px;
         }
 
         .slider {
@@ -1342,13 +1386,13 @@ export default function VenezuelaDisplacementDashboard() {
         .stat-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
-          gap: 10px;
+          gap: 8px;
         }
 
         @media (max-width: 480px) {
           .stat-grid {
             grid-template-columns: 1fr;
-            gap: 10px;
+            gap: 8px;
           }
         }
 
@@ -1356,7 +1400,7 @@ export default function VenezuelaDisplacementDashboard() {
           background: linear-gradient(145deg, #0f172a 0%, #0c1220 100%);
           border: 1px solid #1e293b;
           border-radius: 8px;
-          padding: 14px 10px;
+          padding: 12px 6px;
           text-align: center;
           transition: all 0.2s ease;
         }
@@ -1368,10 +1412,10 @@ export default function VenezuelaDisplacementDashboard() {
 
         .stat-value {
           font-family: 'IBM Plex Mono', monospace;
-          font-size: 20px;
+          font-size: 18px;
           font-weight: 600;
           color: #60a5fa;
-          margin-bottom: 6px;
+          margin-bottom: 4px;
           line-height: 1;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -1386,22 +1430,24 @@ export default function VenezuelaDisplacementDashboard() {
         }
 
         .stat-label {
-          font-size: 11px;
+          font-size: 10px;
           text-transform: uppercase;
-          letter-spacing: 1px;
+          letter-spacing: 0.5px;
           color: #64748b;
           font-weight: 500;
+          white-space: nowrap;
         }
 
         /* ========== BREAKDOWN ROWS ========== */
         .breakdown-row {
           display: flex;
           justify-content: space-between;
-          align-items: center;
+          align-items: flex-start;
           padding: 12px 0;
           border-bottom: 1px solid #1e293b;
           font-size: 14px;
           transition: background 0.15s ease;
+          gap: 12px;
         }
 
         .breakdown-row:hover {
@@ -1417,6 +1463,10 @@ export default function VenezuelaDisplacementDashboard() {
 
         .breakdown-label {
           color: #94a3b8;
+          flex: 1;
+          min-width: 0;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
         }
 
         .breakdown-count {
@@ -1428,6 +1478,8 @@ export default function VenezuelaDisplacementDashboard() {
           font-family: 'IBM Plex Mono', monospace;
           color: #60a5fa;
           font-weight: 500;
+          flex-shrink: 0;
+          white-space: nowrap;
         }
 
         /* ========== MODALS ========== */
@@ -1926,16 +1978,39 @@ export default function VenezuelaDisplacementDashboard() {
             <div className="slider-container">
               <div className="slider-header">
                 <span className="slider-label">Displacement Rate</span>
-                <span className="slider-value">{displacementRate}%</span>
+                <input
+                  type="number"
+                  className="slider-value-input"
+                  min="0.001"
+                  max="10"
+                  step="any"
+                  value={displacementRate}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val) && val >= 0.001 && val <= 10) {
+                      setDisplacementRate(val);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const val = parseFloat(e.target.value);
+                    if (isNaN(val) || val < 0.001) setDisplacementRate(0.001);
+                    else if (val > 10) setDisplacementRate(10);
+                  }}
+                />
+                <span className="slider-value-suffix">%</span>
               </div>
               <input
                 type="range"
                 className="slider"
-                min="0.001"
-                max="10"
-                step="0.001"
-                value={displacementRate}
-                onChange={(e) => setDisplacementRate(parseFloat(e.target.value))}
+                min="0"
+                max="100"
+                step="0.1"
+                value={((Math.log10(displacementRate) + 3) / 4) * 100}
+                onChange={(e) => {
+                  const sliderVal = parseFloat(e.target.value);
+                  const actualVal = Math.pow(10, -3 + (sliderVal / 100) * 4);
+                  setDisplacementRate(parseFloat(actualVal.toPrecision(3)));
+                }}
               />
               <div className="slider-hints">
                 <span>0.001% (minimal)</span>
