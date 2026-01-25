@@ -807,6 +807,23 @@ export default function VenezuelaDisplacementDashboard() {
           pointer-events: none !important;
         }
 
+        /* Ensure no pseudo-elements or overlays block clicks */
+        .app-root *::before,
+        .app-root *::after {
+          pointer-events: none !important;
+        }
+
+        /* Force all interactive elements to receive clicks */
+        .app-root button,
+        .app-root a,
+        .app-root input,
+        .app-root select,
+        .app-root [role="button"],
+        .action-buttons,
+        .action-buttons * {
+          pointer-events: auto !important;
+        }
+
         html, body, #root {
           margin: 0;
           padding: 0;
