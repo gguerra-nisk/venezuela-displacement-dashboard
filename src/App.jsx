@@ -868,21 +868,12 @@ export default function VenezuelaDisplacementDashboard() {
           display: flex;
           flex-direction: column;
           min-height: 0;
-          overflow: hidden;
+          overflow: clip;
           position: relative;
-          isolation: isolate;
-        }
-
-        .column-left {
-          z-index: 1;
-        }
-
-        .column-center {
-          z-index: 1;
         }
 
         .column-right {
-          z-index: 2;
+          z-index: 10;
         }
 
         @media (max-width: 1024px) {
@@ -2505,7 +2496,7 @@ export default function VenezuelaDisplacementDashboard() {
 
         {/* Center Column - Target Selection */}
         <div className="column-center">
-          <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+          <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'clip' }}>
             {/* Fixed header section */}
             <div style={{ flexShrink: 0 }}>
               <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
