@@ -2343,7 +2343,7 @@ export default function VenezuelaDisplacementDashboard() {
         {/* Left Column - Scenario Selection */}
         <div className="column-left">
           {/* Scrollable presets section */}
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: '200px' }}>
             <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', marginBottom: '16px' }}>
               <div className="card-header">Scenario Presets</div>
 
@@ -2455,31 +2455,33 @@ export default function VenezuelaDisplacementDashboard() {
               </div>
             </div>
 
-            <div className="info-box">
-              <strong>Tip:</strong> These are default values. Click the ▼ button on any selected target to set custom rates for that specific target.
+            <div className="info-box" style={{ padding: '12px', marginTop: '12px' }}>
+              <strong>Tip:</strong> Click ▼ on selected targets to set custom rates.
               {Object.keys(targetOverrides).filter(name => selectedTargets.includes(name)).length > 0 && (
-                <span style={{ display: 'block', marginTop: '8px', color: '#fbbf24' }}>
-                  {Object.keys(targetOverrides).filter(name => selectedTargets.includes(name)).length} target(s) have custom values
+                <span style={{ display: 'block', marginTop: '6px', color: '#fbbf24' }}>
+                  {Object.keys(targetOverrides).filter(name => selectedTargets.includes(name)).length} target(s) with custom values
                 </span>
               )}
             </div>
 
             {selectedTargets.length > 0 && (
-              <div className="global-actions">
+              <div className="global-actions" style={{ marginTop: '10px' }}>
                 <button
                   className="btn btn-secondary"
                   onClick={applyGlobalToAllSelected}
                   title="Apply current default values to all selected targets as overrides"
+                  style={{ padding: '8px 12px', fontSize: '11px' }}
                 >
-                  Apply to All Selected
+                  Apply Defaults to All
                 </button>
                 {Object.keys(targetOverrides).filter(name => selectedTargets.includes(name)).length > 0 && (
                   <button
                     className="btn btn-secondary"
                     onClick={resetAllToDefaults}
                     title="Reset all selected targets to use default values"
+                    style={{ padding: '8px 12px', fontSize: '11px' }}
                   >
-                    Reset All to Defaults
+                    Reset All Overrides
                   </button>
                 )}
               </div>
