@@ -712,9 +712,16 @@ export default function VenezuelaDisplacementDashboard() {
           .app-main {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
             padding: 16px;
             overflow: visible;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .app-main {
+            gap: 12px;
+            padding: 12px;
           }
         }
 
@@ -734,9 +741,7 @@ export default function VenezuelaDisplacementDashboard() {
           .column-right {
             overflow: visible;
           }
-          .column-left { order: 2; }
-          .column-center { order: 3; }
-          .column-right { order: 1; }
+          /* Keep natural flow: Scenarios -> Targets -> Results */
         }
 
         /* Custom scrollbars for internal scrollable areas */
@@ -802,13 +807,24 @@ export default function VenezuelaDisplacementDashboard() {
 
         .header-left {
           flex: 1;
-          min-width: 300px;
+          min-width: 200px;
         }
 
         .header-right {
           display: flex;
           align-items: center;
           gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        @media (max-width: 640px) {
+          .header-left {
+            min-width: 100%;
+          }
+          .header-right {
+            width: 100%;
+            justify-content: space-between;
+          }
         }
 
         .app-title {
@@ -845,19 +861,21 @@ export default function VenezuelaDisplacementDashboard() {
             padding: 20px 16px;
           }
           .app-title {
-            font-size: 22px;
+            font-size: 20px;
           }
           .app-subtitle {
-            font-size: 14px;
+            font-size: 13px;
           }
         }
 
         @media (max-width: 640px) {
           .app-title {
-            font-size: 19px;
+            font-size: 18px;
+            line-height: 1.3;
           }
           .app-subtitle {
-            font-size: 13px;
+            font-size: 12px;
+            margin-top: 4px;
           }
         }
 
@@ -905,7 +923,14 @@ export default function VenezuelaDisplacementDashboard() {
 
         @media (max-width: 1024px) {
           .card {
-            padding: 20px;
+            padding: 16px;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .card {
+            padding: 14px;
+            border-radius: 10px;
           }
         }
 
@@ -934,6 +959,13 @@ export default function VenezuelaDisplacementDashboard() {
           opacity: 0.5;
           cursor: not-allowed;
           transform: none;
+        }
+
+        @media (max-width: 640px) {
+          .btn {
+            padding: 14px 20px;
+            min-height: 48px;
+          }
         }
 
         .btn-primary {
@@ -1060,7 +1092,15 @@ export default function VenezuelaDisplacementDashboard() {
           align-items: center;
           margin-bottom: 10px;
           gap: 8px;
-          flex-wrap: nowrap;
+          flex-wrap: wrap;
+        }
+
+        @media (max-width: 400px) {
+          .slider-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+          }
         }
 
         .slider-label {
@@ -1167,6 +1207,20 @@ export default function VenezuelaDisplacementDashboard() {
           box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
         }
 
+        @media (max-width: 640px) {
+          .slider {
+            height: 12px;
+          }
+          .slider::-webkit-slider-thumb {
+            width: 28px;
+            height: 28px;
+          }
+          .slider::-moz-range-thumb {
+            width: 28px;
+            height: 28px;
+          }
+        }
+
         .slider-hints {
           display: flex;
           justify-content: space-between;
@@ -1216,6 +1270,11 @@ export default function VenezuelaDisplacementDashboard() {
             grid-template-columns: 1fr;
             gap: 10px;
           }
+          .select-input {
+            padding: 14px 16px;
+            min-height: 48px;
+            font-size: 16px; /* Prevents zoom on iOS */
+          }
         }
 
         /* ========== TARGET LIST ========== */
@@ -1248,7 +1307,7 @@ export default function VenezuelaDisplacementDashboard() {
         @media (max-width: 1024px) {
           .target-list {
             flex: none;
-            max-height: 500px;
+            max-height: none;
           }
         }
 
@@ -1322,11 +1381,15 @@ export default function VenezuelaDisplacementDashboard() {
         @media (max-width: 640px) {
           .target-item {
             flex-direction: column;
+            padding: 14px;
           }
           .target-stats {
             text-align: left;
-            margin-left: 30px;
-            margin-top: 10px;
+            margin-left: 34px;
+            margin-top: 8px;
+          }
+          .target-item:hover {
+            transform: none; /* Disable hover transform on mobile */
           }
         }
 
@@ -1361,6 +1424,13 @@ export default function VenezuelaDisplacementDashboard() {
         .checkbox.checked svg {
           opacity: 1;
           transform: scale(1);
+        }
+
+        @media (max-width: 640px) {
+          .checkbox {
+            width: 24px;
+            height: 24px;
+          }
         }
 
         /* ========== TAGS ========== */
@@ -1398,10 +1468,42 @@ export default function VenezuelaDisplacementDashboard() {
           gap: 8px;
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 640px) {
+          .stat-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+          }
+          .stat-box {
+            padding: 10px 4px;
+          }
+          .stat-value {
+            font-size: 14px;
+          }
+          .stat-label {
+            font-size: 9px;
+          }
+        }
+
+        @media (max-width: 400px) {
           .stat-grid {
             grid-template-columns: 1fr;
             gap: 8px;
+          }
+          .stat-box {
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-align: left;
+          }
+          .stat-value {
+            font-size: 18px;
+            margin-bottom: 0;
+            order: 2;
+          }
+          .stat-label {
+            font-size: 11px;
+            order: 1;
           }
         }
 
@@ -1491,6 +1593,16 @@ export default function VenezuelaDisplacementDashboard() {
           white-space: nowrap;
         }
 
+        @media (max-width: 400px) {
+          .breakdown-row {
+            flex-direction: column;
+            gap: 4px;
+          }
+          .breakdown-value {
+            margin-left: 0;
+          }
+        }
+
         /* ========== MODALS ========== */
         .modal-overlay {
           position: fixed;
@@ -1578,11 +1690,18 @@ export default function VenezuelaDisplacementDashboard() {
         }
 
         @media (max-width: 640px) {
+          .modal-overlay {
+            padding: 12px;
+          }
+          .modal-content {
+            max-height: 90vh;
+            border-radius: 12px;
+          }
           .modal-header {
-            padding: 20px;
+            padding: 16px;
           }
           .modal-body {
-            padding: 20px;
+            padding: 16px;
           }
           .modal-title {
             font-size: 16px;
@@ -1619,6 +1738,13 @@ export default function VenezuelaDisplacementDashboard() {
         .info-box strong {
           color: #60a5fa;
           font-weight: 500;
+        }
+
+        @media (max-width: 640px) {
+          .info-box {
+            padding: 12px;
+            font-size: 12px;
+          }
         }
 
         /* ========== ATTRIBUTION ========== */
@@ -1665,6 +1791,15 @@ export default function VenezuelaDisplacementDashboard() {
           display: flex;
           flex-direction: column;
           gap: 10px;
+        }
+
+        @media (max-width: 640px) {
+          .action-buttons {
+            gap: 8px;
+          }
+          .action-buttons .btn {
+            width: 100%;
+          }
         }
 
         /* ========== COMPARISON MODAL ========== */
@@ -1767,6 +1902,12 @@ export default function VenezuelaDisplacementDashboard() {
             grid-template-columns: 1fr;
             gap: 12px;
           }
+          .comparison-card {
+            padding: 16px;
+          }
+          .comparison-stat-value {
+            font-size: 22px;
+          }
         }
 
         .summary-item-label {
@@ -1797,6 +1938,14 @@ export default function VenezuelaDisplacementDashboard() {
         .target-count-highlight {
           color: #60a5fa;
           font-weight: 500;
+        }
+
+        @media (max-width: 400px) {
+          .target-count {
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-start;
+          }
         }
 
         /* ========== CUSTOM TARGET ========== */
@@ -1906,6 +2055,20 @@ export default function VenezuelaDisplacementDashboard() {
           margin-top: 24px;
           padding-top: 20px;
           border-top: 1px solid #1e2a3a;
+        }
+
+        @media (max-width: 640px) {
+          .form-input {
+            padding: 14px;
+            font-size: 16px; /* Prevents zoom on iOS */
+          }
+          .form-actions {
+            flex-direction: column-reverse;
+            gap: 10px;
+          }
+          .form-actions .btn {
+            width: 100%;
+          }
         }
       `}</style>
 
