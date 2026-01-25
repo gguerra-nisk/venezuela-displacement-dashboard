@@ -777,6 +777,12 @@ export default function VenezuelaDisplacementDashboard() {
 
         *, *::before, *::after { box-sizing: border-box; }
 
+        /* Hide WordPress theme elements that overlap the dashboard */
+        aside.template-publication_side-note {
+          display: none !important;
+          pointer-events: none !important;
+        }
+
         html, body, #root {
           margin: 0;
           padding: 0;
