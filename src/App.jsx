@@ -870,6 +870,19 @@ export default function VenezuelaDisplacementDashboard() {
           min-height: 0;
           overflow: hidden;
           position: relative;
+          isolation: isolate;
+        }
+
+        .column-left {
+          z-index: 1;
+        }
+
+        .column-center {
+          z-index: 1;
+        }
+
+        .column-right {
+          z-index: 2;
         }
 
         @media (max-width: 1024px) {
@@ -1418,8 +1431,7 @@ export default function VenezuelaDisplacementDashboard() {
         .target-list {
           flex: 1;
           overflow-y: auto;
-          padding-right: 8px;
-          margin-right: -8px;
+          padding-right: 4px;
           min-height: 0;
         }
 
