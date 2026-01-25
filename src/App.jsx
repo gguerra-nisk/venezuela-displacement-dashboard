@@ -255,6 +255,30 @@ export default function VenezuelaDisplacementDashboard() {
     notes: ''
   });
 
+  // Hide WordPress theme elements that may overlap the dashboard
+  useEffect(() => {
+    const hideOverlappingElements = () => {
+      // Find and hide the WordPress aside that blocks clicks
+      const asides = document.querySelectorAll('aside.template-publication_side-note');
+      asides.forEach(aside => {
+        aside.style.display = 'none';
+        aside.style.pointerEvents = 'none';
+      });
+    };
+
+    // Run immediately
+    hideOverlappingElements();
+
+    // Also run after a short delay in case elements are injected after load
+    const timeout = setTimeout(hideOverlappingElements, 500);
+    const timeout2 = setTimeout(hideOverlappingElements, 1500);
+
+    return () => {
+      clearTimeout(timeout);
+      clearTimeout(timeout2);
+    };
+  }, []);
+
   // Read URL parameters on mount to restore shared state
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -2044,6 +2068,14 @@ export default function VenezuelaDisplacementDashboard() {
           display: flex;
           flex-direction: column;
           gap: 10px;
+          position: relative;
+          z-index: 999999;
+        }
+
+        .action-buttons .btn {
+          position: relative;
+          z-index: 999999;
+          pointer-events: auto !important;
         }
 
         @media (max-width: 640px) {
