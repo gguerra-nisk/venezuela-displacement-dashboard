@@ -258,7 +258,26 @@ export default function VenezuelaDisplacementDashboard() {
   // Hide WordPress theme elements that may overlap the dashboard
   useEffect(() => {
     const hideOverlappingElements = () => {
-      // Find and hide the WordPress aside that blocks clicks
+      // Try to access parent document (WordPress page) if same-origin
+      try {
+        if (window.parent && window.parent.document) {
+          const asides = window.parent.document.querySelectorAll('aside.template-publication__side-note');
+          asides.forEach(aside => {
+            aside.style.display = 'none';
+            aside.style.pointerEvents = 'none';
+            aside.style.visibility = 'hidden';
+            aside.style.width = '0';
+            aside.style.height = '0';
+            aside.style.position = 'absolute';
+            aside.style.left = '-9999px';
+          });
+          console.log('Found and hid', asides.length, 'aside elements in parent');
+        }
+      } catch (e) {
+        console.log('Cannot access parent document (cross-origin):', e.message);
+      }
+
+      // Also check current document just in case
       const asides = document.querySelectorAll('aside.template-publication__side-note');
       asides.forEach(aside => {
         aside.style.display = 'none';
@@ -269,13 +288,15 @@ export default function VenezuelaDisplacementDashboard() {
     // Run immediately
     hideOverlappingElements();
 
-    // Also run after a short delay in case elements are injected after load
+    // Also run after delays in case elements are injected after load
     const timeout = setTimeout(hideOverlappingElements, 500);
     const timeout2 = setTimeout(hideOverlappingElements, 1500);
+    const timeout3 = setTimeout(hideOverlappingElements, 3000);
 
     return () => {
       clearTimeout(timeout);
       clearTimeout(timeout2);
+      clearTimeout(timeout3);
     };
   }, []);
 
