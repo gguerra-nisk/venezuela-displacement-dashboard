@@ -869,6 +869,7 @@ export default function VenezuelaDisplacementDashboard() {
           flex-direction: column;
           min-height: 0;
           overflow: hidden;
+          position: relative;
         }
 
         @media (max-width: 1024px) {
@@ -2755,7 +2756,7 @@ export default function VenezuelaDisplacementDashboard() {
           </div>
 
           {/* Scrollable breakdowns in middle */}
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, position: 'relative', zIndex: 1 }}>
             <div className="card" style={{ marginBottom: '16px' }}>
               <div className="card-header">Breakdown by Type</div>
               {Object.entries(calculations.byType).length === 0 ? (
@@ -2804,7 +2805,7 @@ export default function VenezuelaDisplacementDashboard() {
           </div>
 
           {/* Fixed action buttons at bottom */}
-          <div style={{ flexShrink: 0, marginTop: '16px' }}>
+          <div style={{ flexShrink: 0, marginTop: '16px', position: 'relative', zIndex: 10 }}>
             <div className="action-buttons">
             <button
               className="btn btn-secondary"
