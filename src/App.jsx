@@ -951,8 +951,36 @@ export default function VenezuelaDisplacementDashboard() {
           .column-center,
           .column-right {
             overflow: visible;
+            min-height: auto !important;
           }
           /* Keep natural flow: Scenarios -> Targets -> Results */
+
+          /* Override inline flex/height styles on mobile */
+          .column-left > div,
+          .column-center > .card,
+          .column-right > div {
+            flex: none !important;
+            overflow: visible !important;
+            min-height: auto !important;
+          }
+
+          /* Ensure cards display properly */
+          .card {
+            overflow: visible !important;
+            height: auto !important;
+            min-height: auto !important;
+          }
+
+          /* Target list should show all items */
+          .target-list {
+            max-height: none !important;
+            overflow: visible !important;
+          }
+
+          /* Scenario buttons should be visible on mobile via dropdown */
+          .scenario-buttons-container {
+            display: none !important;
+          }
         }
 
         /* Custom scrollbars for internal scrollable areas */
@@ -1034,7 +1062,17 @@ export default function VenezuelaDisplacementDashboard() {
           }
           .header-right {
             width: 100%;
-            justify-content: space-between;
+            justify-content: flex-start;
+            gap: 8px;
+          }
+          .header-right .btn {
+            flex: 1;
+            min-width: 0;
+            font-size: 12px;
+            padding: 10px 12px;
+          }
+          .brand-tag {
+            display: none;
           }
         }
 
@@ -1142,6 +1180,20 @@ export default function VenezuelaDisplacementDashboard() {
           .card {
             padding: 14px;
             border-radius: 10px;
+          }
+          .card-header {
+            flex-wrap: wrap;
+            gap: 10px;
+          }
+          .card-header-buttons {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+          .card-header-buttons .btn {
+            width: 100%;
+            margin-right: 0 !important;
           }
         }
 
@@ -2577,9 +2629,9 @@ export default function VenezuelaDisplacementDashboard() {
           <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'clip' }}>
             {/* Fixed header section */}
             <div style={{ flexShrink: 0 }}>
-              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span>Target Selection</span>
-                <div>
+                <div className="card-header-buttons">
                   <button className="btn btn-secondary" onClick={selectAllFiltered} style={{ marginRight: '8px' }}>
                     Select Filtered
                   </button>
