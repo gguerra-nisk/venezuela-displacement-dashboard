@@ -243,6 +243,8 @@ export default function VenezuelaDisplacementDashboard() {
   const [showComparison, setShowComparison] = useState(false);
   const [customTargets, setCustomTargets] = useState([]);
   const [showCustomTargetModal, setShowCustomTargetModal] = useState(false);
+  const [targetOverrides, setTargetOverrides] = useState({}); // { targetName: { displacementRate?, populationMultiplier? } }
+  const [expandedTarget, setExpandedTarget] = useState(null); // Currently expanded target name
   const [customTargetForm, setCustomTargetForm] = useState({
     name: '',
     municipality: '',
@@ -261,6 +263,7 @@ export default function VenezuelaDisplacementDashboard() {
     const targetsParam = params.get('targets');
     const rateParam = params.get('rate');
     const multParam = params.get('mult');
+    const overridesParam = params.get('overrides');
 
     if (rateParam) {
       const rate = parseFloat(rateParam);
@@ -289,6 +292,38 @@ export default function VenezuelaDisplacementDashboard() {
         setSelectedTargets(validTargets);
       }
     }
+
+    // Parse per-target overrides
+    if (overridesParam) {
+      const parsedOverrides = {};
+      overridesParam.split('|').forEach(item => {
+        const parts = item.split(':');
+        if (parts.length >= 2) {
+          const name = decodeURIComponent(parts[0]);
+          const override = {};
+          for (let i = 1; i < parts.length; i++) {
+            const part = parts[i];
+            if (part.startsWith('r')) {
+              const rate = parseFloat(part.substring(1));
+              if (!isNaN(rate) && rate >= 0.001 && rate <= 10) {
+                override.displacementRate = rate;
+              }
+            } else if (part.startsWith('m')) {
+              const mult = parseFloat(part.substring(1));
+              if (!isNaN(mult) && mult >= 0.7 && mult <= 1.2) {
+                override.populationMultiplier = mult;
+              }
+            }
+          }
+          if (Object.keys(override).length > 0) {
+            parsedOverrides[name] = override;
+          }
+        }
+      });
+      if (Object.keys(parsedOverrides).length > 0) {
+        setTargetOverrides(parsedOverrides);
+      }
+    }
   }, []);
 
   // Merge base targets with custom targets
@@ -307,6 +342,8 @@ export default function VenezuelaDisplacementDashboard() {
 
   const handleScenarioChange = (scenario) => {
     setSelectedScenario(scenario);
+    setExpandedTarget(null);
+    setTargetOverrides({}); // Reset all overrides when changing scenarios
     if (scenario !== 'custom') {
       setSelectedTargets(SCENARIO_PRESETS[scenario].targets);
       setFilterType('all');
@@ -319,11 +356,75 @@ export default function VenezuelaDisplacementDashboard() {
 
   const toggleTarget = (targetName) => {
     setSelectedScenario('custom');
-    setSelectedTargets(prev => 
-      prev.includes(targetName) 
-        ? prev.filter(t => t !== targetName)
-        : [...prev, targetName]
-    );
+    setSelectedTargets(prev => {
+      if (prev.includes(targetName)) {
+        // Deselecting - also collapse if expanded
+        if (expandedTarget === targetName) {
+          setExpandedTarget(null);
+        }
+        return prev.filter(t => t !== targetName);
+      }
+      return [...prev, targetName];
+    });
+  };
+
+  // Get effective displacement rate for a target (override or global default)
+  const getTargetDisplacementRate = (targetName) => {
+    return targetOverrides[targetName]?.displacementRate ?? displacementRate;
+  };
+
+  // Get effective population multiplier for a target (override or global default)
+  const getTargetPopulationMultiplier = (targetName) => {
+    return targetOverrides[targetName]?.populationMultiplier ?? populationMultiplier;
+  };
+
+  // Check if target has any overrides
+  const hasTargetOverride = (targetName) => {
+    const override = targetOverrides[targetName];
+    return override && (override.displacementRate !== undefined || override.populationMultiplier !== undefined);
+  };
+
+  // Update override for a specific target
+  const setTargetOverride = (targetName, field, value) => {
+    setTargetOverrides(prev => ({
+      ...prev,
+      [targetName]: {
+        ...prev[targetName],
+        [field]: value
+      }
+    }));
+  };
+
+  // Reset target to global defaults
+  const resetTargetToDefaults = (targetName) => {
+    setTargetOverrides(prev => {
+      const newOverrides = { ...prev };
+      delete newOverrides[targetName];
+      return newOverrides;
+    });
+  };
+
+  // Apply current global values to all selected targets as overrides
+  const applyGlobalToAllSelected = () => {
+    const newOverrides = { ...targetOverrides };
+    selectedTargets.forEach(targetName => {
+      newOverrides[targetName] = {
+        displacementRate: displacementRate,
+        populationMultiplier: populationMultiplier
+      };
+    });
+    setTargetOverrides(newOverrides);
+  };
+
+  // Reset all selected targets to use global defaults
+  const resetAllToDefaults = () => {
+    setTargetOverrides(prev => {
+      const newOverrides = { ...prev };
+      selectedTargets.forEach(targetName => {
+        delete newOverrides[targetName];
+      });
+      return newOverrides;
+    });
   };
 
   const selectAllFiltered = () => {
@@ -431,6 +532,19 @@ export default function VenezuelaDisplacementDashboard() {
       params.set('targets', selectedTargets.map(t => encodeURIComponent(t)).join(','));
     }
 
+    // Add per-target overrides if any exist
+    const relevantOverrides = Object.entries(targetOverrides)
+      .filter(([name]) => selectedTargets.includes(name))
+      .map(([name, vals]) => {
+        const parts = [encodeURIComponent(name)];
+        if (vals.displacementRate !== undefined) parts.push(`r${vals.displacementRate}`);
+        if (vals.populationMultiplier !== undefined) parts.push(`m${vals.populationMultiplier}`);
+        return parts.join(':');
+      });
+    if (relevantOverrides.length > 0) {
+      params.set('overrides', relevantOverrides.join('|'));
+    }
+
     const baseUrl = window.location.origin + window.location.pathname;
     const queryString = params.toString();
     return queryString ? `${baseUrl}?${queryString}` : baseUrl;
@@ -448,11 +562,14 @@ export default function VenezuelaDisplacementDashboard() {
   // Export scenario data to CSV
   const exportToCSV = () => {
     const { selectedData } = calculations;
-    const headers = ['Target', 'Municipality', 'State', 'Type', 'Region', 'Base Population', 'Adjusted Population', 'Displacement Rate (%)', 'Projected Displacement', 'Notes'];
+    const headers = ['Target', 'Municipality', 'State', 'Type', 'Region', 'Base Population', 'Pop. Multiplier', 'Adjusted Population', 'Displacement Rate (%)', 'Projected Displacement', 'Has Custom Values', 'Notes'];
 
     const rows = selectedData.map(target => {
-      const adjustedPop = Math.round(target.population * populationMultiplier);
-      const displaced = Math.round(adjustedPop * (displacementRate / 100));
+      const effectiveMultiplier = targetOverrides[target.name]?.populationMultiplier ?? populationMultiplier;
+      const effectiveRate = targetOverrides[target.name]?.displacementRate ?? displacementRate;
+      const adjustedPop = Math.round(target.population * effectiveMultiplier);
+      const displaced = Math.round(adjustedPop * (effectiveRate / 100));
+      const hasCustom = hasTargetOverride(target.name) ? 'Yes' : 'No';
       return [
         target.name,
         target.municipality,
@@ -460,9 +577,11 @@ export default function VenezuelaDisplacementDashboard() {
         target.type,
         target.region,
         target.population,
+        effectiveMultiplier.toFixed(2),
         adjustedPop,
-        displacementRate,
+        effectiveRate,
         displaced,
+        hasCustom,
         target.notes || ''
       ].map(val => `"${String(val).replace(/"/g, '""')}"`).join(',');
     });
@@ -493,6 +612,7 @@ export default function VenezuelaDisplacementDashboard() {
       targets: [...selectedTargets],
       displacementRate,
       populationMultiplier,
+      targetOverrides: { ...targetOverrides },
       calculations: { ...calculations }
     };
     setSavedScenarios([...savedScenarios, newScenario]);
@@ -508,6 +628,8 @@ export default function VenezuelaDisplacementDashboard() {
     setSelectedTargets(scenario.targets);
     setDisplacementRate(scenario.displacementRate);
     setPopulationMultiplier(scenario.populationMultiplier);
+    setTargetOverrides(scenario.targetOverrides || {});
+    setExpandedTarget(null);
     setSelectedScenario('custom');
     setShowComparison(false);
   };
@@ -515,7 +637,7 @@ export default function VenezuelaDisplacementDashboard() {
   // Calculate with municipality deduplication
   const calculations = useMemo(() => {
     const selectedData = allTargets.filter(t => selectedTargets.includes(t.name));
-    
+
     // Deduplicate by municipality - use highest population if multiple targets in same municipality
     const municipalityMap = new Map();
     selectedData.forEach(target => {
@@ -524,17 +646,21 @@ export default function VenezuelaDisplacementDashboard() {
         municipalityMap.set(key, target);
       }
     });
-    
+
     const uniqueMunicipalities = Array.from(municipalityMap.values());
-    
+
     const byType = {};
     const byRegion = {};
     let totalPop = 0;
     let totalDisplaced = 0;
 
     uniqueMunicipalities.forEach(target => {
-      const adjustedPop = Math.round(target.population * populationMultiplier);
-      const displaced = Math.round(adjustedPop * (displacementRate / 100));
+      // Use per-target values (override or global default)
+      const effectiveMultiplier = targetOverrides[target.name]?.populationMultiplier ?? populationMultiplier;
+      const effectiveRate = targetOverrides[target.name]?.displacementRate ?? displacementRate;
+
+      const adjustedPop = Math.round(target.population * effectiveMultiplier);
+      const displaced = Math.round(adjustedPop * (effectiveRate / 100));
       totalPop += adjustedPop;
       totalDisplaced += displaced;
 
@@ -552,31 +678,35 @@ export default function VenezuelaDisplacementDashboard() {
       byRegion[target.region].displaced += displaced;
     });
 
-    return { 
-      selectedData, 
+    return {
+      selectedData,
       uniqueMunicipalities,
-      byType, 
-      byRegion, 
-      totalPop, 
+      byType,
+      byRegion,
+      totalPop,
       totalDisplaced,
       deduplicatedCount: uniqueMunicipalities.length,
       rawCount: selectedData.length
     };
-  }, [selectedTargets, displacementRate, populationMultiplier, allTargets]);
+  }, [selectedTargets, displacementRate, populationMultiplier, allTargets, targetOverrides]);
 
   const generateExportText = () => {
     const { selectedData, uniqueMunicipalities, byType, byRegion, totalPop, totalDisplaced, deduplicatedCount, rawCount } = calculations;
-    const scenarioName = selectedScenario !== 'custom' 
-      ? SCENARIO_PRESETS[selectedScenario].name 
+    const scenarioName = selectedScenario !== 'custom'
+      ? SCENARIO_PRESETS[selectedScenario].name
       : 'Custom Selection';
-    
+    const overrideCount = Object.keys(targetOverrides).filter(name => selectedTargets.includes(name)).length;
+
     let text = `VENEZUELA DISPLACEMENT SCENARIO ANALYSIS\n`;
     text += `${'='.repeat(50)}\n\n`;
     text += `Scenario: ${scenarioName}\n`;
-    text += `Displacement Rate: ${displacementRate}%\n`;
-    text += `Population Adjustment: ${populationMultiplier.toFixed(2)}x (base: 2011 census)\n`;
+    text += `Default Displacement Rate: ${displacementRate}%\n`;
+    text += `Default Population Multiplier: ${populationMultiplier.toFixed(2)}x (base: 2011 census)\n`;
+    if (overrideCount > 0) {
+      text += `Targets with Custom Parameters: ${overrideCount}\n`;
+    }
     text += `Generated: ${new Date().toLocaleDateString()}\n\n`;
-    
+
     text += `SUMMARY\n${'-'.repeat(30)}\n`;
     text += `Targets Selected: ${rawCount}`;
     if (rawCount !== deduplicatedCount) {
@@ -604,11 +734,17 @@ export default function VenezuelaDisplacementDashboard() {
     selectedData
       .sort((a, b) => b.population - a.population)
       .forEach(target => {
-        const adjustedPop = Math.round(target.population * populationMultiplier);
-        const displaced = Math.round(adjustedPop * (displacementRate / 100));
-        text += `\n${target.name}\n`;
+        const effectiveMultiplier = targetOverrides[target.name]?.populationMultiplier ?? populationMultiplier;
+        const effectiveRate = targetOverrides[target.name]?.displacementRate ?? displacementRate;
+        const hasCustom = hasTargetOverride(target.name);
+        const adjustedPop = Math.round(target.population * effectiveMultiplier);
+        const displaced = Math.round(adjustedPop * (effectiveRate / 100));
+        text += `\n${target.name}${hasCustom ? ' [CUSTOM PARAMS]' : ''}\n`;
         text += `  Location: ${target.municipality}, ${target.state}\n`;
         text += `  Type: ${target.type} | Region: ${target.region}\n`;
+        if (hasCustom) {
+          text += `  Displacement Rate: ${effectiveRate}% | Pop. Multiplier: ${effectiveMultiplier.toFixed(2)}x\n`;
+        }
         text += `  Adjusted Population: ${adjustedPop.toLocaleString()}\n`;
         text += `  Projected Displacement: ${displaced.toLocaleString()}\n`;
         if (target.notes) text += `  Notes: ${target.notes}\n`;
@@ -617,7 +753,7 @@ export default function VenezuelaDisplacementDashboard() {
     text += `\n${'='.repeat(50)}\n`;
     text += `METHODOLOGY NOTES\n`;
     text += `- Population data: 2011 Venezuelan census (municipal level)\n`;
-    text += `- Displacement calculated as ${displacementRate}% of adjusted municipal population\n`;
+    text += `- Displacement calculated per target using individual or default rates\n`;
     text += `- Default rate (0.001%) reflects minimal strike assumption\n`;
     text += `- Overlapping targets in same municipality are deduplicated to avoid double-counting\n`;
     text += `- This model estimates SHORT-TERM displacement only; multi-year projections require additional modeling\n`;
@@ -1313,19 +1449,30 @@ export default function VenezuelaDisplacementDashboard() {
 
         .target-item {
           display: flex;
-          align-items: flex-start;
-          padding: 16px;
+          flex-direction: column;
+          padding: 0;
           margin-bottom: 10px;
           background: linear-gradient(135deg, #0f172a 0%, #0c1220 100%);
           border: 1px solid #1e293b;
           border-radius: 10px;
-          cursor: pointer;
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+        }
+
+        .target-item-header {
+          display: flex;
+          align-items: flex-start;
+          padding: 16px;
+          padding-right: 40px;
+          cursor: pointer;
         }
 
         .target-item:hover {
           border-color: #3b82f6;
           background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        }
+
+        .target-item:not(.expanded):hover {
           transform: translateX(4px);
         }
 
@@ -1335,8 +1482,83 @@ export default function VenezuelaDisplacementDashboard() {
           box-shadow: 0 0 24px rgba(59, 130, 246, 0.15), inset 0 0 0 1px rgba(59, 130, 246, 0.1);
         }
 
+        .target-item.expanded {
+          border-color: #60a5fa;
+        }
+
         .target-item.selected .target-name {
           color: #60a5fa;
+        }
+
+        .target-expand-btn {
+          position: absolute;
+          top: 16px;
+          right: 12px;
+          width: 24px;
+          height: 24px;
+          background: rgba(59, 130, 246, 0.2);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          border-radius: 4px;
+          color: #60a5fa;
+          font-size: 10px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+        }
+
+        .target-expand-btn:hover {
+          background: rgba(59, 130, 246, 0.3);
+          border-color: #60a5fa;
+        }
+
+        .override-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-left: 6px;
+          font-size: 11px;
+          color: #fbbf24;
+          vertical-align: middle;
+        }
+
+        .target-controls {
+          padding: 0 16px 16px 16px;
+          border-top: 1px solid rgba(59, 130, 246, 0.2);
+          margin-top: 0;
+          animation: fadeIn 0.2s ease-out;
+        }
+
+        .target-control-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 12px;
+          margin-bottom: 6px;
+        }
+
+        .target-control-label {
+          font-size: 12px;
+          color: #94a3b8;
+          font-weight: 500;
+        }
+
+        .target-control-value {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+        }
+
+        .target-slider {
+          width: 100%;
+        }
+
+        .target-reset-btn {
+          width: 100%;
+          margin-top: 12px;
+          padding: 8px 12px;
+          font-size: 12px;
         }
 
         .target-content {
@@ -1379,9 +1601,10 @@ export default function VenezuelaDisplacementDashboard() {
         }
 
         @media (max-width: 640px) {
-          .target-item {
+          .target-item-header {
             flex-direction: column;
             padding: 14px;
+            padding-right: 40px;
           }
           .target-stats {
             text-align: left;
@@ -1390,6 +1613,13 @@ export default function VenezuelaDisplacementDashboard() {
           }
           .target-item:hover {
             transform: none; /* Disable hover transform on mobile */
+          }
+          .target-controls {
+            padding: 0 14px 14px 14px;
+          }
+          .target-expand-btn {
+            top: 14px;
+            right: 10px;
           }
         }
 
@@ -1745,6 +1975,19 @@ export default function VenezuelaDisplacementDashboard() {
             padding: 12px;
             font-size: 12px;
           }
+        }
+
+        .global-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-top: 12px;
+        }
+
+        .global-actions .btn {
+          width: 100%;
+          padding: 10px 12px;
+          font-size: 12px;
         }
 
         /* ========== ATTRIBUTION ========== */
@@ -2213,9 +2456,34 @@ export default function VenezuelaDisplacementDashboard() {
             </div>
 
             <div className="info-box">
-              <strong>Displacement Rate:</strong> Default (0.001%) reflects minimal impact. Increase for larger strike intensity or broader evacuation scenarios.<br/><br/>
-              <strong>Population Multiplier:</strong> Adjusts 2011 census data for population changes. Use &lt;1.0 to account for Venezuela's significant emigration since 2011, or &gt;1.0 if modeling areas with population growth.
+              <strong>Tip:</strong> These are default values. Click the ▼ button on any selected target to set custom rates for that specific target.
+              {Object.keys(targetOverrides).filter(name => selectedTargets.includes(name)).length > 0 && (
+                <span style={{ display: 'block', marginTop: '8px', color: '#fbbf24' }}>
+                  {Object.keys(targetOverrides).filter(name => selectedTargets.includes(name)).length} target(s) have custom values
+                </span>
+              )}
             </div>
+
+            {selectedTargets.length > 0 && (
+              <div className="global-actions">
+                <button
+                  className="btn btn-secondary"
+                  onClick={applyGlobalToAllSelected}
+                  title="Apply current default values to all selected targets as overrides"
+                >
+                  Apply to All Selected
+                </button>
+                {Object.keys(targetOverrides).filter(name => selectedTargets.includes(name)).length > 0 && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={resetAllToDefaults}
+                    title="Reset all selected targets to use default values"
+                  >
+                    Reset All to Defaults
+                  </button>
+                )}
+              </div>
+            )}
             </div>
           </div>
         </div>
@@ -2285,14 +2553,17 @@ export default function VenezuelaDisplacementDashboard() {
             <div className="target-list">
               {filteredTargets.map(target => {
                 const isSelected = selectedTargets.includes(target.name);
-                const adjustedPop = Math.round(target.population * populationMultiplier);
-                const displaced = Math.round(adjustedPop * (displacementRate / 100));
+                const isExpanded = expandedTarget === target.name;
+                const hasOverride = hasTargetOverride(target.name);
+                const effectiveRate = getTargetDisplacementRate(target.name);
+                const effectiveMultiplier = getTargetPopulationMultiplier(target.name);
+                const adjustedPop = Math.round(target.population * effectiveMultiplier);
+                const displaced = Math.round(adjustedPop * (effectiveRate / 100));
 
                 return (
                   <div
                     key={target.name}
-                    className={`target-item ${isSelected ? 'selected' : ''}`}
-                    onClick={() => toggleTarget(target.name)}
+                    className={`target-item ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}`}
                     style={{ position: 'relative' }}
                   >
                     {target.isCustom && (
@@ -2307,41 +2578,139 @@ export default function VenezuelaDisplacementDashboard() {
                         ×
                       </button>
                     )}
-                    <div className={`checkbox ${isSelected ? 'checked' : ''}`}>
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
+                    <div
+                      className="target-item-header"
+                      onClick={() => toggleTarget(target.name)}
+                    >
+                      <div className={`checkbox ${isSelected ? 'checked' : ''}`}>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      <div className="target-content">
+                        <div className="target-name">
+                          {target.name}
+                          {target.isCustom && <span className="custom-badge" style={{ marginLeft: '8px' }}>Custom</span>}
+                          {hasOverride && <span className="override-badge" title="Custom parameters">⚙</span>}
+                        </div>
+                        <div className="target-location">
+                          {target.municipality}, {target.state}
+                        </div>
+                        <div className="tags-container">
+                          <span className="tag tag-type">{target.type}</span>
+                          <span className="tag tag-region">{target.region}</span>
+                        </div>
+                      </div>
+                      <div className="target-stats">
+                        {isSelected ? (
+                          <>
+                            <div className="target-stat-value" style={{ color: '#60a5fa' }}>
+                              {displaced.toLocaleString()}
+                            </div>
+                            <div className="target-stat-label">displaced</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="target-stat-value" style={{ color: '#64748b' }}>
+                              {adjustedPop.toLocaleString()}
+                            </div>
+                            <div className="target-stat-label">population</div>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="target-content">
-                      <div className="target-name">
-                        {target.name}
-                        {target.isCustom && <span className="custom-badge" style={{ marginLeft: '8px' }}>Custom</span>}
-                      </div>
-                      <div className="target-location">
-                        {target.municipality}, {target.state}
-                      </div>
-                      <div className="tags-container">
-                        <span className="tag tag-type">{target.type}</span>
-                        <span className="tag tag-region">{target.region}</span>
-                      </div>
-                    </div>
-                    <div className="target-stats">
-                      {isSelected ? (
-                        <>
-                          <div className="target-stat-value" style={{ color: '#60a5fa' }}>
-                            {displaced.toLocaleString()}
+
+                    {/* Expand/collapse button for selected targets */}
+                    {isSelected && (
+                      <button
+                        className="target-expand-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedTarget(isExpanded ? null : target.name);
+                        }}
+                        title={isExpanded ? "Collapse" : "Adjust parameters"}
+                      >
+                        {isExpanded ? '▲' : '▼'}
+                      </button>
+                    )}
+
+                    {/* Expanded per-target controls */}
+                    {isSelected && isExpanded && (
+                      <div className="target-controls" onClick={(e) => e.stopPropagation()}>
+                        <div className="target-control-row">
+                          <label className="target-control-label">Displacement Rate</label>
+                          <div className="target-control-value">
+                            <input
+                              type="number"
+                              className="slider-value-input"
+                              value={effectiveRate}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                if (!isNaN(val) && val >= 0.001 && val <= 10) {
+                                  setTargetOverride(target.name, 'displacementRate', val);
+                                }
+                              }}
+                              min="0.001"
+                              max="10"
+                              step="0.001"
+                            />
+                            <span className="slider-value-suffix">%</span>
                           </div>
-                          <div className="target-stat-label">displaced</div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="target-stat-value" style={{ color: '#64748b' }}>
-                            {adjustedPop.toLocaleString()}
+                        </div>
+                        <input
+                          type="range"
+                          className="slider target-slider"
+                          min="0"
+                          max="100"
+                          value={((Math.log10(effectiveRate) + 3) / 4) * 100}
+                          onChange={(e) => {
+                            const sliderVal = parseFloat(e.target.value);
+                            const actualVal = Math.pow(10, -3 + (sliderVal / 100) * 4);
+                            const decimals = actualVal < 0.01 ? 4 : actualVal < 0.1 ? 3 : actualVal < 1 ? 2 : 1;
+                            setTargetOverride(target.name, 'displacementRate', parseFloat(actualVal.toFixed(decimals)));
+                          }}
+                        />
+
+                        <div className="target-control-row" style={{ marginTop: '12px' }}>
+                          <label className="target-control-label">Pop. Multiplier</label>
+                          <div className="target-control-value">
+                            <input
+                              type="number"
+                              className="slider-value-input"
+                              value={effectiveMultiplier.toFixed(2)}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                if (!isNaN(val) && val >= 0.7 && val <= 1.2) {
+                                  setTargetOverride(target.name, 'populationMultiplier', val);
+                                }
+                              }}
+                              min="0.7"
+                              max="1.2"
+                              step="0.01"
+                            />
+                            <span className="slider-value-suffix">×</span>
                           </div>
-                          <div className="target-stat-label">population</div>
-                        </>
-                      )}
-                    </div>
+                        </div>
+                        <input
+                          type="range"
+                          className="slider target-slider"
+                          min="0.7"
+                          max="1.2"
+                          step="0.01"
+                          value={effectiveMultiplier}
+                          onChange={(e) => setTargetOverride(target.name, 'populationMultiplier', parseFloat(e.target.value))}
+                        />
+
+                        {hasOverride && (
+                          <button
+                            className="btn btn-secondary target-reset-btn"
+                            onClick={() => resetTargetToDefaults(target.name)}
+                          >
+                            Reset to Defaults
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
