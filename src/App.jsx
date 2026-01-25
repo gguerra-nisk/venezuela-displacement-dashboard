@@ -259,7 +259,7 @@ export default function VenezuelaDisplacementDashboard() {
   useEffect(() => {
     const hideOverlappingElements = () => {
       // Find and hide the WordPress aside that blocks clicks
-      const asides = document.querySelectorAll('aside.template-publication_side-note');
+      const asides = document.querySelectorAll('aside.template-publication__side-note');
       asides.forEach(aside => {
         aside.style.display = 'none';
         aside.style.pointerEvents = 'none';
@@ -802,7 +802,7 @@ export default function VenezuelaDisplacementDashboard() {
         *, *::before, *::after { box-sizing: border-box; }
 
         /* Hide WordPress theme elements that overlap the dashboard */
-        aside.template-publication_side-note {
+        aside.template-publication__side-note {
           display: none !important;
           pointer-events: none !important;
         }
