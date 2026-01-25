@@ -377,13 +377,22 @@ export default function VenezuelaDisplacementDashboard() {
   }, [customTargets]);
 
   const filteredTargets = useMemo(() => {
-    return allTargets.filter(t => {
+    const filtered = allTargets.filter(t => {
       if (filterType !== 'all' && t.type !== filterType) return false;
       if (filterRegion !== 'all' && t.region !== filterRegion) return false;
       if (filterState !== 'all' && t.state !== filterState) return false;
       return true;
     });
-  }, [filterType, filterRegion, filterState, allTargets]);
+
+    // Sort selected targets to the top
+    return filtered.sort((a, b) => {
+      const aSelected = selectedTargets.includes(a.name);
+      const bSelected = selectedTargets.includes(b.name);
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+      return 0; // Maintain original order within each group
+    });
+  }, [filterType, filterRegion, filterState, allTargets, selectedTargets]);
 
   const handleScenarioChange = (scenario) => {
     setSelectedScenario(scenario);
@@ -595,13 +604,25 @@ export default function VenezuelaDisplacementDashboard() {
     return queryString ? `${baseUrl}?${queryString}` : baseUrl;
   };
 
-  // Copy shareable URL to clipboard
+  // Copy shareable URL to clipboard (with fallback for iframe restrictions)
   const copyShareableUrl = () => {
     const url = generateShareableUrl();
-    navigator.clipboard.writeText(url).then(() => {
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    });
+
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(() => {
+          setLinkCopied(true);
+          setTimeout(() => setLinkCopied(false), 2000);
+        })
+        .catch(() => {
+          // Clipboard API blocked (e.g., in iframe), show prompt with URL
+          prompt('Copy this link to share the scenario:', url);
+        });
+    } else {
+      // Fallback: show prompt with URL
+      prompt('Copy this link to share the scenario:', url);
+    }
   };
 
   // Export scenario data to CSV
