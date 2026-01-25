@@ -700,27 +700,16 @@ export default function VenezuelaDisplacementDashboard() {
     setShowComparison(false);
   };
 
-  // Calculate with municipality deduplication
+  // Calculate displacement for all selected targets
   const calculations = useMemo(() => {
     const selectedData = allTargets.filter(t => selectedTargets.includes(t.name));
-
-    // Deduplicate by municipality - use highest population if multiple targets in same municipality
-    const municipalityMap = new Map();
-    selectedData.forEach(target => {
-      const key = `${target.municipality}-${target.state}`;
-      if (!municipalityMap.has(key) || municipalityMap.get(key).population < target.population) {
-        municipalityMap.set(key, target);
-      }
-    });
-
-    const uniqueMunicipalities = Array.from(municipalityMap.values());
 
     const byType = {};
     const byRegion = {};
     let totalPop = 0;
     let totalDisplaced = 0;
 
-    uniqueMunicipalities.forEach(target => {
+    selectedData.forEach(target => {
       // Use per-target values (override or global default)
       const effectiveMultiplier = targetOverrides[target.name]?.populationMultiplier ?? populationMultiplier;
       const effectiveRate = targetOverrides[target.name]?.displacementRate ?? displacementRate;
@@ -730,15 +719,12 @@ export default function VenezuelaDisplacementDashboard() {
       totalPop += adjustedPop;
       totalDisplaced += displaced;
 
-      // Count by type (use all selected targets, not deduplicated, for type counts)
-      selectedData.filter(t => `${t.municipality}-${t.state}` === `${target.municipality}-${target.state}`).forEach(t => {
-        if (!byType[t.type]) byType[t.type] = { count: 0, displaced: 0 };
-        byType[t.type].count++;
-      });
-      // But displacement is from deduplicated
-      const primaryType = target.type;
-      if (byType[primaryType]) byType[primaryType].displaced += displaced;
+      // Count by type
+      if (!byType[target.type]) byType[target.type] = { count: 0, displaced: 0 };
+      byType[target.type].count++;
+      byType[target.type].displaced += displaced;
 
+      // Count by region
       if (!byRegion[target.region]) byRegion[target.region] = { count: 0, displaced: 0 };
       byRegion[target.region].count++;
       byRegion[target.region].displaced += displaced;
@@ -746,18 +732,16 @@ export default function VenezuelaDisplacementDashboard() {
 
     return {
       selectedData,
-      uniqueMunicipalities,
       byType,
       byRegion,
       totalPop,
       totalDisplaced,
-      deduplicatedCount: uniqueMunicipalities.length,
-      rawCount: selectedData.length
+      targetCount: selectedData.length
     };
   }, [selectedTargets, displacementRate, populationMultiplier, allTargets, targetOverrides]);
 
   const generateExportText = () => {
-    const { selectedData, uniqueMunicipalities, byType, byRegion, totalPop, totalDisplaced, deduplicatedCount, rawCount } = calculations;
+    const { selectedData, byType, byRegion, totalPop, totalDisplaced, targetCount } = calculations;
     const scenarioName = selectedScenario !== 'custom'
       ? SCENARIO_PRESETS[selectedScenario].name
       : 'Custom Selection';
@@ -774,11 +758,7 @@ export default function VenezuelaDisplacementDashboard() {
     text += `Generated: ${new Date().toLocaleDateString()}\n\n`;
 
     text += `SUMMARY\n${'-'.repeat(30)}\n`;
-    text += `Targets Selected: ${rawCount}`;
-    if (rawCount !== deduplicatedCount) {
-      text += ` (${deduplicatedCount} unique municipalities after deduplication)`;
-    }
-    text += `\n`;
+    text += `Targets Selected: ${targetCount}\n`;
     text += `Total Affected Population: ${totalPop.toLocaleString()}\n`;
     text += `Projected Displacement: ${totalDisplaced.toLocaleString()}\n\n`;
 
@@ -793,7 +773,7 @@ export default function VenezuelaDisplacementDashboard() {
     Object.entries(byRegion)
       .sort((a, b) => b[1].displaced - a[1].displaced)
       .forEach(([region, data]) => {
-        text += `${region}: ${data.count} municipalities, ${data.displaced.toLocaleString()} displaced\n`;
+        text += `${region}: ${data.count} targets, ${data.displaced.toLocaleString()} displaced\n`;
       });
 
     text += `\nTARGET DETAILS\n${'-'.repeat(30)}\n`;
@@ -821,7 +801,8 @@ export default function VenezuelaDisplacementDashboard() {
     text += `- Population data: 2011 Venezuelan census (municipal level)\n`;
     text += `- Displacement calculated per target using individual or default rates\n`;
     text += `- Default rate (0.001%) reflects minimal strike assumption\n`;
-    text += `- Overlapping targets in same municipality are deduplicated to avoid double-counting\n`;
+    text += `- Multiple targets in the same municipality are counted separately (each with its own parameters)\n`;
+    text += `- Users should consider potential population overlap when selecting multiple targets in the same area\n`;
     text += `- This model estimates SHORT-TERM displacement only; multi-year projections require additional modeling\n`;
     text += `- Secondary/ripple effects (neighboring areas fleeing) are not included\n\n`;
     text += `AUTHORS\n`;
@@ -2830,8 +2811,8 @@ export default function VenezuelaDisplacementDashboard() {
 
               <div className="stat-grid">
                 <div className="stat-box">
-                  <div className="stat-value">{calculations.deduplicatedCount}</div>
-                  <div className="stat-label">Municipalities</div>
+                  <div className="stat-value">{calculations.targetCount}</div>
+                  <div className="stat-label">Targets</div>
                 </div>
                 <div className="stat-box">
                   <div className="stat-value stat-value-large">
@@ -2846,12 +2827,6 @@ export default function VenezuelaDisplacementDashboard() {
                   <div className="stat-label">Displaced</div>
                 </div>
               </div>
-
-              {calculations.rawCount !== calculations.deduplicatedCount && (
-                <div className="dedup-note">
-                  Note: {calculations.rawCount} targets selected across {calculations.deduplicatedCount} unique municipalities. Overlapping populations deduplicated.
-                </div>
-              )}
             </div>
           </div>
 
@@ -3004,8 +2979,11 @@ export default function VenezuelaDisplacementDashboard() {
               <p>Projected displacement = (Municipal Population × Population Multiplier) × Displacement Rate</p>
               <p>The default displacement rate of 0.001% reflects a minimal strike assumption. Users should adjust based on strike intensity, evacuation patterns, and conflict duration being modeled.</p>
 
-              <h4>Deduplication</h4>
-              <p>When multiple targets are selected within the same municipality, the affected population is counted only once to avoid double-counting. The highest population figure among overlapping targets is used.</p>
+              <h4>Per-Target Parameters</h4>
+              <p>Each target can have its own displacement rate and population multiplier. Click on a target to expand its settings and customize these values. Global defaults are applied to targets without custom settings.</p>
+
+              <h4>Population Overlap Considerations</h4>
+              <p>When multiple targets are located in the same municipality, their populations are counted separately. Users should be aware that this may result in some population overlap. Consider adjusting individual target parameters if modeling scenarios where multiple strikes in the same area would not displace additional populations.</p>
 
               <h4>Limitations</h4>
               <ul>
@@ -3193,9 +3171,9 @@ export default function VenezuelaDisplacementDashboard() {
                     <div className="comparison-stat">
                       <div className="comparison-stat-label">Targets</div>
                       <div className="comparison-stat-value" style={{ color: '#60a5fa' }}>
-                        {scenario.calculations.deduplicatedCount}
+                        {scenario.calculations.targetCount || scenario.calculations.deduplicatedCount}
                       </div>
-                      <div className="comparison-stat-sub">unique municipalities</div>
+                      <div className="comparison-stat-sub">targets</div>
                     </div>
 
                     <div className="comparison-stat">
