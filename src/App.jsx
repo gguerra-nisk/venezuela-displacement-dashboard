@@ -231,7 +231,7 @@ const ALL_STATES = ['all', ...new Set(TARGETS_DATA.map(t => t.state))].sort((a, 
 export default function VenezuelaDisplacementDashboard() {
   const [selectedScenario, setSelectedScenario] = useState('custom');
   const [selectedTargets, setSelectedTargets] = useState([]);
-  const [displacementRate, setDisplacementRate] = useState(0.001);
+  const [displacementRate, setDisplacementRate] = useState(0);
   const [populationMultiplier, setPopulationMultiplier] = useState(1.0);
   const [filterType, setFilterType] = useState('all');
   const [filterRegion, setFilterRegion] = useState('all');
@@ -312,7 +312,7 @@ export default function VenezuelaDisplacementDashboard() {
 
     if (rateParam) {
       const rate = parseFloat(rateParam);
-      if (!isNaN(rate) && rate >= 0.001 && rate <= 10) {
+      if (!isNaN(rate) && rate >= 0 && rate <= 10) {
         setDisplacementRate(rate);
       }
     }
@@ -350,7 +350,7 @@ export default function VenezuelaDisplacementDashboard() {
             const part = parts[i];
             if (part.startsWith('r')) {
               const rate = parseFloat(part.substring(1));
-              if (!isNaN(rate) && rate >= 0.001 && rate <= 10) {
+              if (!isNaN(rate) && rate >= 0 && rate <= 10) {
                 override.displacementRate = rate;
               }
             } else if (part.startsWith('m')) {
@@ -570,7 +570,7 @@ export default function VenezuelaDisplacementDashboard() {
     const params = new URLSearchParams();
 
     // Add displacement rate if not default
-    if (displacementRate !== 0.001) {
+    if (displacementRate !== 0) {
       params.set('rate', displacementRate.toString());
     }
 
@@ -800,7 +800,7 @@ export default function VenezuelaDisplacementDashboard() {
     text += `METHODOLOGY NOTES\n`;
     text += `- Population data: 2011 Venezuelan census (municipal level)\n`;
     text += `- Displacement calculated per target using individual or default rates\n`;
-    text += `- Default rate (0.001%) reflects minimal strike assumption\n`;
+    text += `- Default rate is 0%; users should adjust based on scenario assumptions\n`;
     text += `- Multiple targets in the same municipality are counted separately (each with its own parameters)\n`;
     text += `- Users should consider potential population overlap when selecting multiple targets in the same area\n`;
     text += `- This model estimates SHORT-TERM displacement only; multi-year projections require additional modeling\n`;
@@ -2530,19 +2530,19 @@ export default function VenezuelaDisplacementDashboard() {
                 <input
                   type="number"
                   className="slider-value-input"
-                  min="0.001"
+                  min="0"
                   max="10"
                   step="any"
                   value={displacementRate}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value);
-                    if (!isNaN(val) && val >= 0.001 && val <= 10) {
+                    if (!isNaN(val) && val >= 0 && val <= 10) {
                       setDisplacementRate(val);
                     }
                   }}
                   onBlur={(e) => {
                     const val = parseFloat(e.target.value);
-                    if (isNaN(val) || val < 0.001) setDisplacementRate(0.001);
+                    if (isNaN(val) || val < 0) setDisplacementRate(0);
                     else if (val > 10) setDisplacementRate(10);
                   }}
                 />
@@ -2554,17 +2554,21 @@ export default function VenezuelaDisplacementDashboard() {
                 min="0"
                 max="100"
                 step="0.1"
-                value={((Math.log10(displacementRate) + 3) / 4) * 100}
+                value={displacementRate === 0 ? 0 : ((Math.log10(displacementRate) + 3) / 4) * 100}
                 onChange={(e) => {
                   const sliderVal = parseFloat(e.target.value);
-                  const actualVal = Math.pow(10, -3 + (sliderVal / 100) * 4);
-                  // Round to appropriate decimal places based on magnitude
-                  const decimals = actualVal < 0.01 ? 4 : actualVal < 0.1 ? 3 : actualVal < 1 ? 2 : 1;
-                  setDisplacementRate(parseFloat(actualVal.toFixed(decimals)));
+                  if (sliderVal === 0) {
+                    setDisplacementRate(0);
+                  } else {
+                    const actualVal = Math.pow(10, -3 + (sliderVal / 100) * 4);
+                    // Round to appropriate decimal places based on magnitude
+                    const decimals = actualVal < 0.01 ? 4 : actualVal < 0.1 ? 3 : actualVal < 1 ? 2 : 1;
+                    setDisplacementRate(parseFloat(actualVal.toFixed(decimals)));
+                  }
                 }}
               />
               <div className="slider-hints">
-                <span>0.001% (minimal)</span>
+                <span>0% (none)</span>
                 <span>10% (major)</span>
               </div>
             </div>
@@ -2782,11 +2786,11 @@ export default function VenezuelaDisplacementDashboard() {
                               value={effectiveRate}
                               onChange={(e) => {
                                 const val = parseFloat(e.target.value);
-                                if (!isNaN(val) && val >= 0.001 && val <= 10) {
+                                if (!isNaN(val) && val >= 0 && val <= 10) {
                                   setTargetOverride(target.name, 'displacementRate', val);
                                 }
                               }}
-                              min="0.001"
+                              min="0"
                               max="10"
                               step="0.001"
                             />
@@ -2798,12 +2802,16 @@ export default function VenezuelaDisplacementDashboard() {
                           className="slider target-slider"
                           min="0"
                           max="100"
-                          value={((Math.log10(effectiveRate) + 3) / 4) * 100}
+                          value={effectiveRate === 0 ? 0 : ((Math.log10(effectiveRate) + 3) / 4) * 100}
                           onChange={(e) => {
                             const sliderVal = parseFloat(e.target.value);
-                            const actualVal = Math.pow(10, -3 + (sliderVal / 100) * 4);
-                            const decimals = actualVal < 0.01 ? 4 : actualVal < 0.1 ? 3 : actualVal < 1 ? 2 : 1;
-                            setTargetOverride(target.name, 'displacementRate', parseFloat(actualVal.toFixed(decimals)));
+                            if (sliderVal === 0) {
+                              setTargetOverride(target.name, 'displacementRate', 0);
+                            } else {
+                              const actualVal = Math.pow(10, -3 + (sliderVal / 100) * 4);
+                              const decimals = actualVal < 0.01 ? 4 : actualVal < 0.1 ? 3 : actualVal < 1 ? 2 : 1;
+                              setTargetOverride(target.name, 'displacementRate', parseFloat(actualVal.toFixed(decimals)));
+                            }
                           }}
                         />
 
@@ -3029,7 +3037,7 @@ export default function VenezuelaDisplacementDashboard() {
 
               <h4>Displacement Calculation</h4>
               <p>Projected displacement = (Municipal Population × Population Multiplier) × Displacement Rate</p>
-              <p>The default displacement rate of 0.001% reflects a minimal strike assumption. Users should adjust based on strike intensity, evacuation patterns, and conflict duration being modeled.</p>
+              <p>The default displacement rate is 0%. Users should adjust based on strike intensity, evacuation patterns, and conflict duration being modeled.</p>
 
               <h4>Per-Target Parameters</h4>
               <p>Each target can have its own displacement rate and population multiplier. Click on a target to expand its settings and customize these values. Global defaults are applied to targets without custom settings.</p>
