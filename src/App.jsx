@@ -319,7 +319,7 @@ export default function VenezuelaDisplacementDashboard() {
 
     if (multParam) {
       const mult = parseFloat(multParam);
-      if (!isNaN(mult) && mult >= 0.7 && mult <= 1.2) {
+      if (!isNaN(mult) && mult >= 0.3 && mult <= 2.0) {
         setPopulationMultiplier(mult);
       }
     }
@@ -355,7 +355,7 @@ export default function VenezuelaDisplacementDashboard() {
               }
             } else if (part.startsWith('m')) {
               const mult = parseFloat(part.substring(1));
-              if (!isNaN(mult) && mult >= 0.7 && mult <= 1.2) {
+              if (!isNaN(mult) && mult >= 0.3 && mult <= 2.0) {
                 override.populationMultiplier = mult;
               }
             }
@@ -2581,15 +2581,15 @@ export default function VenezuelaDisplacementDashboard() {
               <input
                 type="range"
                 className="slider"
-                min="0.7"
-                max="1.2"
+                min="0.3"
+                max="2.0"
                 step="0.01"
                 value={populationMultiplier}
                 onChange={(e) => setPopulationMultiplier(parseFloat(e.target.value))}
               />
               <div className="slider-hints">
-                <span>0.7x (emigration)</span>
-                <span>1.2x (growth)</span>
+                <span>0.3x (severe decline)</span>
+                <span>2.0x (major growth)</span>
               </div>
             </div>
 
@@ -2824,22 +2824,25 @@ export default function VenezuelaDisplacementDashboard() {
                               value={effectiveMultiplier.toFixed(2)}
                               onChange={(e) => {
                                 const val = parseFloat(e.target.value);
-                                if (!isNaN(val) && val >= 0.7 && val <= 1.2) {
+                                if (!isNaN(val) && val >= 0.3 && val <= 2.0) {
                                   setTargetOverride(target.name, 'populationMultiplier', val);
                                 }
                               }}
-                              min="0.7"
-                              max="1.2"
+                              min="0.3"
+                              max="2.0"
                               step="0.01"
                             />
                             <span className="slider-value-suffix">×</span>
                           </div>
                         </div>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', marginBottom: '4px' }}>
+                          Base: {target.population.toLocaleString()} → Adjusted: {Math.round(target.population * effectiveMultiplier).toLocaleString()}
+                        </div>
                         <input
                           type="range"
                           className="slider target-slider"
-                          min="0.7"
-                          max="1.2"
+                          min="0.3"
+                          max="2.0"
                           step="0.01"
                           value={effectiveMultiplier}
                           onChange={(e) => setTargetOverride(target.name, 'populationMultiplier', parseFloat(e.target.value))}
